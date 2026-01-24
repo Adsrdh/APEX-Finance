@@ -16,7 +16,8 @@ def print_menu():
     print("7. View Total Portfolio Value")
     print("8. View Sector Pie Chart")
     print("9. View 1-Year Price Chart")
-    print("10. Exit")
+    print("10. View 1-Year Price Chart")
+    print("11. Exit")
     print("=" * 60)
 
 
@@ -88,6 +89,17 @@ def main():
                     StockVisuals(df).create_line_graph()
 
             elif choice == "10":
+                ticker = input("Enter ticker symbol: ").strip().upper()
+                stock = portfolio.get_stock(ticker)
+
+                if not stock:
+                    print(f"⚠️ {ticker} not found in portfolio.")
+                else:
+                    print("📈 Fetching 1-month history...")
+                    df = stock.history.df_1_month()
+                    StockVisuals(df).create_line_graph()
+
+            elif choice == "11":
                 print(f"👋 Exiting Portfolio Manager. Goodbye, {portfolio.name} owner!")
                 sys.exit(0)
 

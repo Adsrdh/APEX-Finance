@@ -251,3 +251,9 @@ class History:
             yf.download(self.ticker, start=self.current_date - datetime.timedelta(days=365), end=self.current_date)[
                 "Close"])
         return df
+
+    def df_1_month(self):
+        df = pd.DataFrame(
+            yf.download(self.ticker, start=self.current_date - datetime.timedelta(days=30), end=self.current_date)[
+                "Close"])
+        return df
