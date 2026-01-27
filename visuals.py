@@ -90,7 +90,7 @@ class StockVisuals:
 
         plt.show()
 
-    def create_advanced_analysis(self):
+    def create_rsi_analysis(self):
         df = self.data.copy()
 
         # 1. Calculate RSI
@@ -118,4 +118,39 @@ class StockVisuals:
         ax2.legend(loc='upper left')
 
         plt.tight_layout()
+        plt.show()
+    def create_price_volume_line_chart(self, ticker="Stock"):
+        df = self.data.copy()
+
+        # 1. Setup the figure with two rows (Price on top, Volume on bottom)
+        # sharex=True ensures that zooming/panning on one chart moves the other
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True,
+                                       gridspec_kw={'height_ratios': [3, 1]})
+
+        # --- TOP PLOT: PRICE ---
+        ax1.plot(df.index, df['Close'], color='#007bff', linewidth=2, label='Price')
+        ax1.fill_between(df.index, df['Close'], df['Close'].min() * 0.99, color='#007bff', alpha=0.1)
+
+        ax1.set_title(f"{ticker} Performance & Volume", fontsize=14, pad=15)
+        ax1.set_ylabel('Price (USD)', fontweight='bold')
+        ax1.grid(True, linestyle=':', alpha=0.6)
+        ax1.legend(loc='upper left')
+
+        # --- BOTTOM PLOT: VOLUME ---
+        # Color-code: Green if price increased from yesterday, Red if it decreased
+        price_diff = df['Close'].diff()
+        colors = ['green' if diff >= 0 else 'red' for diff in price_diff]
+        if len(colors) > 0: colors[0] = 'green'  # Default first bar
+
+        ax2.bar(df.index, df['Volume'], color=colors, alpha=0.6, width=0.8)
+
+        ax2.set_ylabel('Volume', fontweight='bold')
+        ax2.grid(True, linestyle=':', alpha=0.4)
+
+        # Clean up date formatting
+        fig.autofmt_xdate()
+
+        plt.tight_layout()
+        # Adjust space between subplots to be minimal
+        plt.subplots_adjust(hspace=0.05)
         plt.show()
