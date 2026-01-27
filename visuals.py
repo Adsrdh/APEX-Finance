@@ -22,8 +22,10 @@ class StockVisuals:
         self.data = data
 
     def create_line_graph(self):  # data is Pandas dataframe
+        df = self.data.copy()
+        df = df['Close']
         fig, ax = plt.subplots(figsize=(10, 6))
-        self.data.plot(ax=ax)
+        df.plot(ax=ax)
 
         ax.set_title("Stock Closing Prices")
         ax.set_xlabel("Date")
@@ -88,4 +90,32 @@ class StockVisuals:
 
         plt.show()
 
+    def create_advanced_analysis(self):
+        df = self.data.copy()
 
+        # 1. Calculate RSI
+        delta = df['Close'].diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+        rs = gain / loss
+        df['RSI'] = 100 - (100 / (1 + rs))
+
+        # 2. Setup Subplots (2 Rows: Price/Volume and RSI)
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), gridspec_kw={'height_ratios': [3, 1]})
+
+        # Top Plot: Price and Moving Averages
+        ax1.plot(df.index, df['Close'], label='Price', color='black', alpha=0.7)
+        ax1.set_title(f"Advanced Analysis")
+        ax1.legend(loc='upper left')
+        ax1.grid(True, alpha=0.3)
+
+        # Bottom Plot: RSI
+        ax2.plot(df.index, df['RSI'], label='RSI (14)', color='purple')
+        ax2.axhline(70, color='red', linestyle='--', alpha=0.5)  # Overbought line
+        ax2.axhline(30, color='green', linestyle='--', alpha=0.5)  # Oversold line
+        ax2.set_ylim(0, 100)
+        ax2.set_ylabel('RSI')
+        ax2.legend(loc='upper left')
+
+        plt.tight_layout()
+        plt.show()

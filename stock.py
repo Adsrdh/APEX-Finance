@@ -282,14 +282,26 @@ class History:
         self.ticker = ticker
         self.current_date = datetime.datetime.now()
 
-    def create_df(self, days=1):
-        df = pd.DataFrame(
-            yf.download(self.ticker, start=self.current_date - datetime.timedelta(days), end=self.current_date)[
-                "Close"])
+    def create_df(self, days):
+        """Internal helper to fetch and clean data from Yahoo Finance."""
+        start = self.current_date - datetime.timedelta(days=days)
+        df = yf.download(self.ticker, start=start, end=self.current_date, progress=False)
+
+        # Handle yfinance MultiIndex columns
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
+
+        # Ensure the index is named 'Date' and is a DatetimeIndex
+        df.index.name = 'Date'
+
         return df
 
-    def yearly(self):
-        return self.create_df(365)
+    def get_days(self, days):
+        """Get data for a specific number of days."""
+        return self.create_df(days)
+
+    def daily(self):
+        return self.create_df(5)  # Fetching 5 to ensure we get at least 1 trading day
 
     def monthly(self):
         return self.create_df(30)
@@ -297,22 +309,5 @@ class History:
     def six_month(self):
         return self.create_df(180)
 
-    def daily(self):
-        return self.create_df(1)
-
-    def get_clean_data(self, days):
-        start = self.current_date - datetime.timedelta(days=days)
-        # Download full OHLC data
-        df = yf.download(self.ticker, start=start, end=self.current_date, progress=False)
-
-        # FIX: If yfinance returns a MultiIndex (common in newer versions), flatten it
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.get_level_values(0)
-
-        return df
-
-    def df_1_year(self):
-        return self.get_clean_data(365)
-
-    def df_1_month(self):
-        return self.get_clean_data(30)
+    def yearly(self):
+        return self.create_df(365)
