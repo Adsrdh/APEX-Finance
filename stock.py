@@ -44,9 +44,51 @@ class Stock:
         self.financials = Financials(data)
         print(f"Data for {self.ticker_symbol} refreshed successfully.")
 
-    def get_change(self):
-        return (
-            f"{self.market_data.current_price - self.market_data.previous_close:.2f} ({((self.market_data.current_price - self.market_data.previous_close) / self.market_data.previous_close) * 100:.2f}%)")
+    def get_change(self, period="daily"):
+        """
+        Gateway method to access the Change class calculations.
+        Supported periods: 'daily', 'monthly', 'six_month', 'yearly'
+        """
+        period = period.lower()
+
+        if period == "daily":
+            return self.change.daily()
+        elif period == "monthly":
+            return self.change.monthly()
+        elif period == "six_month":
+            return self.change.six_month()
+        elif period == "yearly":
+            return self.change.yearly()
+        else:
+            # Default to specific days if a number is passed as a string
+            try:
+                days = int(period)
+                return self.change.calculate_change(days)
+            except ValueError:
+                raise ValueError(f"Invalid period: {period}")
+
+    def get_historical_data(self, period="daily"):
+        """
+        Gateway method to access the Change class calculations.
+        Supported periods: 'daily', 'monthly', 'six_month', 'yearly'
+        """
+        period = period.lower()
+
+        if period == "daily":
+            return self.history.daily()
+        elif period == "monthly":
+            return self.history.monthly()
+        elif period == "six_month":
+            return self.history.six_month()
+        elif period == "yearly":
+            return self.history.yearly()
+        else:
+            # Default to specific days if a number is passed as a string
+            try:
+                days = int(period)
+                return self.change.calculate_change(days)
+            except ValueError:
+                raise ValueError(f"Invalid period: {period}")
 
     def __str__(self):
         return (
@@ -209,36 +251,30 @@ class Financials:
 
 
 class Change:
-    def __init__(self, ticker, current_price):
+    def __init__(self, ticker, current_price, days=1):
         self.ticker = ticker
         self.current_price = current_price
         self.current_date = datetime.datetime.now()
 
-    def daily(self):
+    def calculate_change(self, days=1):
         change_price = \
-            yf.Ticker(self.ticker).history(start=self.current_date - datetime.timedelta(days=1), end=self.current_date)[
+            yf.Ticker(self.ticker).history(start=self.current_date - datetime.timedelta(days), end=self.current_date)[
                 'Close'].iloc[0]
         dollar = round(float(self.current_price - change_price), 2)
         percent = round(float((dollar / change_price) * 100), 2)
         return dollar, percent
 
     def yearly(self):
-        change_price = \
-            yf.Ticker(self.ticker).history(start=self.current_date - datetime.timedelta(days=365),
-                                           end=self.current_date)[
-                'Close'].iloc[0]
-        dollar = round(float(self.current_price - change_price), 2)
-        percent = round(float((dollar / change_price) * 100), 2)
-        return dollar, percent
+        return self.calculate_change(365)
 
-    def period(self, period):  # period in days
-        change_price = \
-            yf.Ticker(self.ticker).history(start=self.current_date - datetime.timedelta(days=period),
-                                           end=self.current_date)[
-                'Close'].iloc[0]
-        dollar = round(float(self.current_price - change_price), 2)
-        percent = round(float((dollar / change_price) * 100), 2)
-        return dollar, percent
+    def monthly(self):
+        return self.calculate_change(30)
+
+    def six_month(self):
+        return self.calculate_change(180)
+
+    def daily(self):
+        return self.calculate_change(1)
 
 
 class History:
@@ -246,14 +282,37 @@ class History:
         self.ticker = ticker
         self.current_date = datetime.datetime.now()
 
-    def df_1_year(self):
+    def create_df(self, days=1):
         df = pd.DataFrame(
-            yf.download(self.ticker, start=self.current_date - datetime.timedelta(days=365), end=self.current_date)[
+            yf.download(self.ticker, start=self.current_date - datetime.timedelta(days), end=self.current_date)[
                 "Close"])
         return df
 
-    def df_1_month(self):
-        df = pd.DataFrame(
-            yf.download(self.ticker, start=self.current_date - datetime.timedelta(days=30), end=self.current_date)[
-                "Close"])
+    def yearly(self):
+        return self.create_df(365)
+
+    def monthly(self):
+        return self.create_df(30)
+
+    def six_month(self):
+        return self.create_df(180)
+
+    def daily(self):
+        return self.create_df(1)
+
+    def get_clean_data(self, days):
+        start = self.current_date - datetime.timedelta(days=days)
+        # Download full OHLC data
+        df = yf.download(self.ticker, start=start, end=self.current_date, progress=False)
+
+        # FIX: If yfinance returns a MultiIndex (common in newer versions), flatten it
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
+
         return df
+
+    def df_1_year(self):
+        return self.get_clean_data(365)
+
+    def df_1_month(self):
+        return self.get_clean_data(30)

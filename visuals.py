@@ -1,4 +1,6 @@
 import matplotlib.pyplot as plt
+import pandas as pd
+import mplfinance as mpf
 
 
 class PortfolioVisuals:
@@ -27,3 +29,63 @@ class StockVisuals:
         ax.set_xlabel("Date")
         ax.set_ylabel("Price (USD)")
         plt.show()
+
+    def create_volatility_chart(self, ticker="Stock"):
+        df = self.data.copy()
+
+        # 1. Calculate Bollinger Bands
+        # Standard period of 20, with 2 standard deviations
+        df['SMA'] = df['Close'].rolling(window=20).mean()
+        df['STD'] = df['Close'].rolling(window=20).std()
+        df['Upper'] = df['SMA'] + (df['STD'] * 2)
+        df['Lower'] = df['SMA'] - (df['STD'] * 2)
+
+        # 2. Logic for Overbought/Oversold Markers
+        # We only want to label a few points so the chart isn't messy
+        df['Marker'] = None
+        for i in range(len(df)):
+            if df['Close'].iloc[i] > df['Upper'].iloc[i]:
+                df.at[df.index[i], 'Marker'] = df['High'].iloc[i] * 1.02  # Point above
+            elif df['Close'].iloc[i] < df['Lower'].iloc[i]:
+                df.at[df.index[i], 'Marker'] = df['Low'].iloc[i] * 0.98  # Point below
+
+        # 3. Define the Plotting Elements (Add-ons)
+        # Gold lines for the bands and a shaded region
+        apds = [
+            mpf.make_addplot(df['Upper'], color='#B8860B', width=1.5),  # DarkGold
+            mpf.make_addplot(df['Lower'], color='#B8860B', width=1.5),
+            mpf.make_addplot(df['SMA'], color='#808080', width=0.8, alpha=0.5)  # Middle line
+        ]
+
+        # 4. Create the Plot
+        # 'charles' is the theme for green/red candles
+        # 'fill_between' creates that gray cloud effect
+        fig, axlist = mpf.plot(
+            df,
+            type='candle',
+            style='charles',
+            addplot=apds,
+            fill_between=dict(y1=df['Lower'].values, y2=df['Upper'].values, color='gray', alpha=0.1),
+            title=f"\n{ticker} Volatility Analysis",
+            ylabel='Price (USD)',
+            volume=False,
+            tight_layout=True,
+            datetime_format='%b %Y',
+            returnfig=True,
+            figscale=1.2
+        )
+
+        # 5. Add Custom Text Labels (Overbought/Oversold)
+        # We find where markers exist and draw the little boxes from your image
+        ax = axlist[0]
+        for i in range(len(df)):
+            if df['Close'].iloc[i] > df['Upper'].iloc[i] and i % 5 == 0:  # label every 5th to avoid clutter
+                ax.text(i, df['High'].iloc[i], 'Overbought', fontsize=8, color='white',
+                        bbox=dict(facecolor='#FF4500', alpha=0.8, boxstyle='round,pad=0.3'))
+            elif df['Close'].iloc[i] < df['Lower'].iloc[i] and i % 5 == 0:
+                ax.text(i, df['Low'].iloc[i], 'Oversold', fontsize=8, color='white',
+                        bbox=dict(facecolor='#1E90FF', alpha=0.8, boxstyle='round,pad=0.3'))
+
+        plt.show()
+
+
