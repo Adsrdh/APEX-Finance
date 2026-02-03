@@ -1,4 +1,5 @@
 from stock import Stock
+import pandas as pd
 
 
 class StockPortfolio:
@@ -94,3 +95,53 @@ class StockPortfolio:
 
     def __str__(self):
         return f"Portfolio '{self.name}' | Holdings: {len(self.stocks)} | Total Value: ${self.get_portfolio_value():,.2f}"
+
+    def get_portfolio_history(self, days=365):
+        """Merges all stock histories into a single Total Value DataFrame."""
+        combined_df = pd.DataFrame()
+
+        for ticker, stock in self.stocks.items():
+            hist = stock.history.get_days(days)['Close']
+            if isinstance(hist, pd.DataFrame): hist = hist.iloc[:, 0]
+
+            # Calculate value: Price * Quantity
+            stock_value_series = hist * stock.get_quantity_held()
+
+            if combined_df.empty:
+                combined_df['TotalValue'] = stock_value_series
+            else:
+                combined_df['TotalValue'] = combined_df['TotalValue'].add(stock_value_series, fill_value=0)
+
+            return combined_df.dropna()
+
+    def get_risk_reward_data(self):
+        """Compiles stats for all stocks for the scatter plot."""
+        stats = []
+        for ticker, stock in self.stocks.items():
+            rm = stock.risk_metrics
+
+            stats.append({
+                'ticker': ticker,
+                'return': rm.get_annualized_return(),
+                'vol': rm.get_annualized_volatility(),
+                'sharpe': rm.get_sharpe_ratio(),
+                'treynor': rm.get_treynor_ratio()
+            })
+        return stats
+
+    def get_portfolio_daily_sharpe(self):
+        """Calculates the Sharpe Ratio of the entire portfolio for every day in the year."""
+        portfolio_history = self.get_portfolio_history(days=365)
+
+        # Calculate daily returns of the total portfolio value
+        port_returns = portfolio_history['TotalValue'].pct_change().dropna()
+
+        # Risk-free rate (daily)
+        rf_daily = 0.04 / 252
+
+        # Rolling 20-day Sharpe to show 'daily' movement
+        rolling_mu = port_returns.rolling(window=20).mean()
+        rolling_sigma = port_returns.rolling(window=20).std()
+
+        daily_sharpe = (rolling_mu - rf_daily) / rolling_sigma
+        return daily_sharpe.dropna()

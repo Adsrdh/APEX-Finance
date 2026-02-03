@@ -14,6 +14,7 @@ class Stock:
         self._quantity_held = quantity
         self.change = Change(self.ticker_symbol, self.market_data.current_price)
         self.history = History(self.ticker_symbol)
+        self.risk_metrics = RiskMetrics(self.history.yearly(), self.valuation.beta)
 
     def get_quantity_held(self):
         return self._quantity_held
@@ -311,3 +312,36 @@ class History:
 
     def yearly(self):
         return self.create_df(365)
+
+class RiskMetrics:
+    def __init__(self, history_df, beta):
+        self.df = history_df
+        self.beta = beta
+        # Calculate daily returns
+        self.returns = self.df['Close'].pct_change().dropna()
+
+    def get_annualized_return(self):
+        return self.returns.mean() * 252
+
+    def get_annualized_volatility(self):
+        return self.returns.std() * (252**0.5)
+
+    def get_sharpe_ratio(self, rf=0.04):
+        vol = self.get_annualized_volatility()
+        if vol == 0: return 0
+        return (self.get_annualized_return() - rf) / vol
+
+    def get_treynor_ratio(self, rf=0.04):
+        # Beta measures systematic risk
+        if self.beta == 0 or self.beta is None: return 0
+        return (self.get_annualized_return() - rf) / self.beta
+
+    def get_daily_sharpe_series(self, rf_daily=0.00016):  # Approx 4% annual / 252 days
+        """Returns a series of Sharpe Ratios calculated on a rolling basis."""
+        # We use a 20-day rolling window to get a 'daily' sense of the ratio
+        rolling_return = self.returns.rolling(window=20).mean()
+        rolling_std = self.returns.rolling(window=20).std()
+
+        daily_sharpe = (rolling_return - rf_daily) / rolling_std
+        return daily_sharpe.dropna()
+

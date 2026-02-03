@@ -16,6 +16,67 @@ class PortfolioVisuals:
         ax.pie(values, labels=labels)
         plt.show()
 
+    def create_benchmark_comparison(self, benchmark_ticker="^GSPC"):
+        import yfinance as yf
+        # self.data is the combined_df from get_portfolio_history
+        port_hist = self.data['TotalValue']
+
+        bench = yf.download(benchmark_ticker, start=port_hist.index.min(),
+                            end=port_hist.index.max(), progress=False)['Close']
+        if isinstance(bench, pd.DataFrame): bench = bench.iloc[:, 0]
+
+        # Normalize to 100
+        port_norm = (port_hist / port_hist.iloc[0]) * 100
+        bench_norm = (bench / bench.iloc[0]) * 100
+
+        plt.figure(figsize=(12, 6))
+        plt.plot(port_norm.index, port_norm, label='Portfolio', color='#007bff')
+        plt.plot(bench_norm.index, bench_norm, label='S&P 500', color='orange', linestyle='--')
+        plt.title("Portfolio vs Benchmark (Growth of $100)")
+        plt.legend()
+        plt.show()
+
+    def create_risk_reward_scatter(self):
+        # self.data is the list from get_risk_reward_data
+        tickers = [s['ticker'] for s in self.data]
+        vols = [s['vol'] for s in self.data]
+        returns = [s['return'] for s in self.data]
+        sharpes = [s['sharpe'] for s in self.data]
+
+        plt.figure(figsize=(10, 6))
+        scatter = plt.scatter(vols, returns, c=sharpes, cmap='RdYlGn', s=100)
+        for i, txt in enumerate(tickers):
+            plt.annotate(txt, (vols[i], returns[i]))
+
+        plt.colorbar(scatter, label='Sharpe Ratio')
+        plt.xlabel('Risk (Volatility)')
+        plt.ylabel('Return (Annualized)')
+        plt.title('Risk-Reward Analysis')
+        plt.show()
+
+    def create_daily_sharpe_scatter(self):
+        df_sharpe = self.data
+
+        plt.figure(figsize=(12, 6))
+
+        # We use a scatter plot where the color changes based on the value
+        # Green for positive Sharpe (efficiency), Red for negative
+        colors = ['green' if val > 0 else 'red' for val in df_sharpe]
+
+        plt.scatter(df_sharpe.index, df_sharpe.values, c=colors, alpha=0.6, s=15)
+
+        # Add a horizontal line at 0 for reference
+        plt.axhline(0, color='black', linestyle='--', alpha=0.5)
+
+        plt.title("Portfolio Daily Sharpe Ratio (20-Day Rolling Window)", fontsize=14)
+        plt.ylabel("Sharpe Ratio")
+        plt.xlabel("Date")
+        plt.grid(True, alpha=0.2)
+
+            # Clean up date formatting
+        plt.gcf().autofmt_xdate()
+        plt.show()
+
 
 class StockVisuals:
     def __init__(self, data):
