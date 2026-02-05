@@ -1,146 +1,118 @@
 import yfinance as yf
 import datetime
 import pandas as pd
+import numpy as np
 
 
 class Stock:
     def __init__(self, ticker_symbol, quantity=1):
         self.ticker_symbol = ticker_symbol.upper()
-        data = yf.Ticker(self.ticker_symbol).info
+        self._quantity_held = max(0, quantity)  # Ensure non-negative quantity
+
+        # 1. API CONNECTION & VALIDATION
+        ticker_obj = yf.Ticker(self.ticker_symbol)
+        try:
+            data = ticker_obj.info
+            # Check for empty data or missing price (indicates invalid ticker)
+            if not data or not any(k in data for k in ['currentPrice', 'regularMarketPrice', 'navPrice']):
+                raise ValueError(f"Ticker '{self.ticker_symbol}' is invalid or has no market data.")
+        except Exception as e:
+            raise ConnectionError(f"Failed to fetch data for {self.ticker_symbol}: {str(e)}")
+
+        # 2. DATA ENCAPSULATION WITH FALLBACKS
         self.company_info = CompanyInfo(data)
         self.valuation = ValuationMetrics(data)
         self.market_data = MarketData(data)
         self.financials = Financials(data)
-        self._quantity_held = quantity
+
+        # 3. COMPONENT CLASSES
         self.change = Change(self.ticker_symbol, self.market_data.current_price)
         self.history = History(self.ticker_symbol)
-        self.risk_metrics = RiskMetrics(self.history.yearly(), self.valuation.beta)
+
+        # 4. RISK METRICS VALIDATION
+        try:
+            hist_df = self.history.yearly()
+            if hist_df is not None and not hist_df.empty:
+                self.risk_metrics = RiskMetrics(hist_df, self.valuation.beta)
+            else:
+                self.risk_metrics = None
+        except Exception:
+            self.risk_metrics = None
 
     def get_quantity_held(self):
         return self._quantity_held
 
     def increase_quantity(self, amount):
         if amount <= 0:
-            raise ValueError
-        else:
-            self._quantity_held += amount
+            raise ValueError("Amount to increase must be positive.")
+        self._quantity_held += amount
 
     def decrease_quantity(self, amount):
-        """Decreases the stock quantity held"""
         if amount > self._quantity_held:
-            raise ValueError
-        elif amount <= 0:
-            raise ValueError
-        else:
-            self._quantity_held -= amount
+            raise ValueError("Insufficient quantity held.")
+        if amount <= 0:
+            raise ValueError("Amount to decrease must be positive.")
+        self._quantity_held -= amount
 
     def get_total_value(self):
         return self.market_data.current_price * self._quantity_held
 
     def refresh_data(self):
-        data = yf.Ticker(self.ticker_symbol).info
-        self.company_info = CompanyInfo(data)
-        self.valuation = ValuationMetrics(data)
-        self.market_data = MarketData(data)
-        self.financials = Financials(data)
-        print(f"Data for {self.ticker_symbol} refreshed successfully.")
+        try:
+            data = yf.Ticker(self.ticker_symbol).info
+            self.company_info = CompanyInfo(data)
+            self.valuation = ValuationMetrics(data)
+            self.market_data = MarketData(data)
+            self.financials = Financials(data)
+        except Exception as e:
+            print(f"Refresh failed for {self.ticker_symbol}: {e}")
 
+    # Gateway methods with try-except to prevent crashing during calculation
     def get_change(self, period="daily"):
-        """
-        Gateway method to access the Change class calculations.
-        Supported periods: 'daily', 'monthly', 'six_month', 'yearly'
-        """
-        period = period.lower()
-
-        if period == "daily":
-            return self.change.daily()
-        elif period == "monthly":
-            return self.change.monthly()
-        elif period == "six_month":
-            return self.change.six_month()
-        elif period == "yearly":
-            return self.change.yearly()
-        else:
-            # Default to specific days if a number is passed as a string
-            try:
-                days = int(period)
-                return self.change.calculate_change(days)
-            except ValueError:
-                raise ValueError(f"Invalid period: {period}")
+        try:
+            period = str(period).lower()
+            mapping = {"daily": 1, "monthly": 30, "six_month": 180, "yearly": 365}
+            days = mapping.get(period, int(period) if period.isdigit() else 1)
+            return self.change.calculate_change(days)
+        except Exception:
+            return 0.0, 0.0
 
     def get_historical_data(self, period="daily"):
-        """
-        Gateway method to access the Change class calculations.
-        Supported periods: 'daily', 'monthly', 'six_month', 'yearly'
-        """
-        period = period.lower()
-
-        if period == "daily":
-            return self.history.daily()
-        elif period == "monthly":
-            return self.history.monthly()
-        elif period == "six_month":
-            return self.history.six_month()
-        elif period == "yearly":
-            return self.history.yearly()
-        else:
-            # Default to specific days if a number is passed as a string
-            try:
-                days = int(period)
-                return self.change.calculate_change(days)
-            except ValueError:
-                raise ValueError(f"Invalid period: {period}")
-
-    def __str__(self):
-        return (
-            f"\n{'=' * 60}\n"
-            f"📊 STOCK OVERVIEW: {self.ticker_symbol} ({self.company_info.name})\n"
-            f"{'=' * 60}\n"
-            f"Quantity Held: {self._quantity_held}\n"
-            f"Current Price: ${self.market_data.current_price:,.2f}\n"
-            f"Sector: {self.company_info.sector} | Industry: {self.company_info.industry}\n"
-            f"Market Cap: ${self.market_data.market_cap / 1_000_000_000_000:.2f}T\n"
-            f"Recommendation: {self.valuation.recommendation.capitalize()}\n"
-            f"{'-' * 60}\n"
-            f"{self.valuation}"
-            f"{self.market_data}"
-            f"{self.financials}"
-            f"{'-' * 60}\n"
-            f"🌐 More Info: {self.company_info.website}\n"
-            f"{'=' * 60}\n"
-        )
+        try:
+            period = str(period).lower()
+            if period == "daily":
+                return self.history.daily()
+            if period == "monthly":
+                return self.history.monthly()
+            if period == "six_month":
+                return self.history.six_month()
+            if period == "yearly":
+                return self.history.yearly()
+            return self.history.get_days(int(period))
+        except Exception:
+            return pd.DataFrame()
 
 
 class CompanyInfo:
     def __init__(self, data):
-        self.name = data["longName"]
-        self.sector = data["sector"]
-        self.industry = data["industry"]
-        self.phone = data["phone"]
-        self.summary = data["longBusinessSummary"]
-        self.website = data["website"]
-        self.employees = data["fullTimeEmployees"]
-        self.executive_board = ExecutiveBoard(data["companyOfficers"])
+        self.name = data.get("longName", "N/A")
+        self.sector = data.get("sector", "N/A")
+        self.industry = data.get("industry", "N/A")
+        self.phone = data.get("phone", "N/A")
+        self.summary = data.get("longBusinessSummary", "No summary available.")
+        self.website = data.get("website", "N/A")
+        self.employees = data.get("fullTimeEmployees", "N/A")
+        self.executive_board = ExecutiveBoard(data.get("companyOfficers", []))
         self.address = Address(data)
-
-    def __str__(self):
-        return (
-            f"\n{self.name}\n"
-            f"Sector: {self.sector} | Industry: {self.industry}\n"
-            f"Employees: {self.employees}\n"
-            f"Headquarters: {self.address}\n"
-            f"Website: {self.website}\n"
-        )
 
 
 class ExecutiveBoard:
     def __init__(self, executive_member_data):
-        self.executive_board = [ExecutiveMember(member) for member in executive_member_data]
-
-    def __str__(self):
-        top_execs = self.executive_board[:3]
-        exec_lines = "\n".join(f" - {exec_}" for exec_ in top_execs)
-        return f"\nExecutive Board:\n{exec_lines}\n"
+        # Handle case where executive_member_data is None or empty
+        if not executive_member_data:
+            self.executive_board = []
+        else:
+            self.executive_board = [ExecutiveMember(member) for member in executive_member_data]
 
 
 class ExecutiveMember:
@@ -148,161 +120,107 @@ class ExecutiveMember:
         self.name = member.get("name", "N/A")
         self.title = member.get("title", "N/A")
         self.age = member.get("age", "N/A")
-        self.birth_year = member.get("yearBorn", "N/A")
         self.pay = member.get("totalPay", "N/A")
-
-    def __str__(self):
-        pay_str = f"${self.pay:,.0f}" if isinstance(self.pay, (int, float)) else "N/A"
-        return f"{self.name} ({self.age}) — {self.title} | Total Pay: {pay_str}"
 
 
 class Address:
     def __init__(self, data):
-        self.line1 = data["address1"]
-        self.city = data["city"]
-        self.state = data["state"]
-        self.country = data["country"]
-        self.zip = data["zip"]
+        self.line1 = data.get("address1", "N/A")
+        self.city = data.get("city", "N/A")
+        self.state = data.get("state", "N/A")
+        self.country = data.get("country", "N/A")
+        self.zip = data.get("zip", "N/A")
 
     def __str__(self):
-        return f"{self.line1}, {self.city}, {self.state}, {self.country}, {self.zip}"
+        return f"{self.line1}, {self.city}, {self.country}"
 
 
 class ValuationMetrics:
     def __init__(self, data):
-        self.pe = data["trailingPE"]
-        self.forward_pe = data["forwardPE"]
-        self.pb_ratio = data["priceToBook"]
-        self.dividend_yield = data["dividendYield"]
-        self.dividend_rate = data["dividendRate"]
-        self.beta = data["beta"]
-        self.eps = data["trailingEps"]
-        self.target_mean_price = data["targetMeanPrice"]
-        self.recommendation = data["recommendationKey"]
-
-    def pe_difference(self):
-        return self.pe - self.forward_pe
-
-    def dividend_yield_percent(self):
-        return self.dividend_yield * 100
-
-    def __str__(self):
-        return (
-            f"\nValuation Metrics:\n"
-            f"P/E: {self.pe:.2f} | Forward P/E: {self.forward_pe:.2f} | P/B: {self.pb_ratio:.2f}\n"
-            f"Dividend Yield: {self.dividend_yield * 100:.2f}% | Beta: {self.beta:.2f}\n"
-            f"EPS (Trailing): {self.eps:.2f} | Target Mean Price: ${self.target_mean_price:,.2f}\n"
-            f"Recommendation: {self.recommendation.capitalize()}\n"
-        )
+        self.pe = data.get("trailingPE")
+        self.forward_pe = data.get("forwardPE")
+        self.pb_ratio = data.get("priceToBook")
+        self.dividend_yield = data.get("dividendYield", 0)
+        self.beta = data.get("beta", 1.0)  # Default to market beta
+        self.eps = data.get("trailingEps")
+        self.target_mean_price = data.get("targetMeanPrice")
+        self.recommendation = data.get("recommendationKey", "N/A")
 
 
 class MarketData:
     def __init__(self, data):
-        self.current_price = data["currentPrice"]
-        self.previous_close = data["previousClose"]
-        self.open_price = data["open"]
-        self.day_high = data["dayHigh"]
-        self.day_low = data["dayLow"]
-        self.volume = data["volume"]
-        self.fifty_two_week_range = data["fiftyTwoWeekRange"]
-        self.market_cap = data["marketCap"]
-
-    def daily_range(self):
-        return self.day_high - self.day_low
-
-    def is_bullish(self):
-        if self.current_price > self.previous_close:
-            return True
-        else:
-            return False
-
-    def __str__(self):
-        return (
-            f"\nMarket Data:\n"
-            f"Current Price: ${self.current_price:,.2f} | Previous Close: ${self.previous_close:,.2f}\n"
-            f"Open: ${self.open_price:,.2f} | Day Range: {self.day_low} - {self.day_high}\n"
-            f"52-Week Range: {self.fifty_two_week_range} | Volume: {self.volume:,}\n"
-            f"Market Cap: ${self.market_cap / 1_000_000_000_000:.2f}T\n"
-        )
+        # Pick the most reliable price source available
+        self.current_price = data.get("currentPrice") or data.get("regularMarketPrice") or data.get("navPrice") or 0.0
+        self.previous_close = data.get("previousClose", self.current_price)
+        self.open_price = data.get("open", self.current_price)
+        self.day_high = data.get("dayHigh", self.current_price)
+        self.day_low = data.get("dayLow", self.current_price)
+        self.volume = data.get("volume", 0)
+        self.fifty_two_week_range = data.get("fiftyTwoWeekRange", "N/A")
+        self.market_cap = data.get("marketCap", 0)
 
 
 class Financials:
     def __init__(self, data):
-        self.revenue = data["totalRevenue"]
-        self.net_income = data["netIncomeToCommon"]
-        self.total_cash = data["totalCash"]
-        self.total_debt = data["totalDebt"]
-        self.free_cash_flow = data["freeCashflow"]
-        self.gross_margin = data["grossMargins"]
-        self.operating_margin = data["operatingMargins"]
-        self.return_on_equity = data["returnOnEquity"]
-        self.return_on_assets = data["returnOnAssets"]
-        self.debt_to_equity = data["debtToEquity"]
-
-    def __str__(self):
-        return (
-            f"\nFinancials:\n"
-            f"Revenue: ${self.revenue / 1_000_000_000:.1f}B | Net Income: ${self.net_income / 1_000_000_000:.1f}B\n"
-            f"Total Cash: ${self.total_cash / 1_000_000_000:.1f}B | Total Debt: ${self.total_debt / 1_000_000_000:.1f}B\n"
-            f"Free Cash Flow: ${self.free_cash_flow / 1_000_000_000:.1f}B\n"
-            f"Gross Margin: {self.gross_margin * 100:.1f}% | Operating Margin: {self.operating_margin * 100:.1f}%\n"
-            f"ROE: {self.return_on_equity * 100:.1f}% | ROA: {self.return_on_assets * 100:.1f}% | "
-            f"Debt/Equity: {self.debt_to_equity:.2f}\n"
-        )
+        # Convert all to floats/ints or default to 0
+        self.revenue = data.get("totalRevenue", 0)
+        self.net_income = data.get("netIncomeToCommon", 0)
+        self.total_cash = data.get("totalCash", 0)
+        self.total_debt = data.get("totalDebt", 0)
+        self.free_cash_flow = data.get("freeCashflow", 0)
+        self.gross_margin = data.get("grossMargins", 0)
+        self.operating_margin = data.get("operatingMargins", 0)
+        self.return_on_equity = data.get("returnOnEquity", 0)
+        self.return_on_assets = data.get("returnOnAssets", 0)
+        self.debt_to_equity = data.get("debtToEquity", 0)
 
 
 class Change:
-    def __init__(self, ticker, current_price, days=1):
+    def __init__(self, ticker, current_price):
         self.ticker = ticker
         self.current_price = current_price
-        self.current_date = datetime.datetime.now()
 
     def calculate_change(self, days=1):
-        change_price = \
-            yf.Ticker(self.ticker).history(start=self.current_date - datetime.timedelta(days), end=self.current_date)[
-                'Close'].iloc[0]
-        dollar = round(float(self.current_price - change_price), 2)
-        percent = round(float((dollar / change_price) * 100), 2)
-        return dollar, percent
+        try:
+            # period="max" or "2y" is safer to ensure we find enough data
+            ticker_obj = yf.Ticker(self.ticker)
+            hist = ticker_obj.history(period="2y")
+            if hist.empty or len(hist) < 2:
+                return 0.0, 0.0
 
-    def yearly(self):
-        return self.calculate_change(365)
+            # Find the closest date available
+            idx = -min(days + 1, len(hist))
+            start_price = hist['Close'].iloc[idx]
 
-    def monthly(self):
-        return self.calculate_change(30)
-
-    def six_month(self):
-        return self.calculate_change(180)
-
-    def daily(self):
-        return self.calculate_change(1)
+            dollar = round(float(self.current_price - start_price), 2)
+            percent = round(float((dollar / start_price) * 100), 2) if start_price != 0 else 0.0
+            return dollar, percent
+        except Exception:
+            return 0.0, 0.0
 
 
 class History:
     def __init__(self, ticker):
         self.ticker = ticker
-        self.current_date = datetime.datetime.now()
 
     def create_df(self, days):
-        """Internal helper to fetch and clean data from Yahoo Finance."""
-        start = self.current_date - datetime.timedelta(days=days)
-        df = yf.download(self.ticker, start=start, end=self.current_date, progress=False)
+        try:
+            end = datetime.datetime.now()
+            start = end - datetime.timedelta(days=days)
+            df = yf.download(self.ticker, start=start, end=end, progress=False)
 
-        # Handle yfinance MultiIndex columns
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.get_level_values(0)
+            if df.empty:
+                return pd.DataFrame()
 
-        # Ensure the index is named 'Date' and is a DatetimeIndex
-        df.index.name = 'Date'
-
-        return df
-
-    def get_days(self, days):
-        """Get data for a specific number of days."""
-        return self.create_df(days)
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
+            df.index.name = 'Date'
+            return df
+        except Exception:
+            return pd.DataFrame()
 
     def daily(self):
-        return self.create_df(5)  # Fetching 5 to ensure we get at least 1 trading day
+        return self.create_df(5)
 
     def monthly(self):
         return self.create_df(30)
@@ -313,35 +231,47 @@ class History:
     def yearly(self):
         return self.create_df(365)
 
+    def get_days(self, days):
+        return self.create_df(days)
+
+
 class RiskMetrics:
     def __init__(self, history_df, beta):
         self.df = history_df
-        self.beta = beta
-        # Calculate daily returns
-        self.returns = self.df['Close'].pct_change().dropna()
+        self.beta = beta if (beta is not None and beta != 0) else 1.0
+
+        if not self.df.empty and 'Close' in self.df.columns:
+            self.returns = self.df['Close'].pct_change().fillna(0)
+        else:
+            self.returns = pd.Series(dtype='float64')
 
     def get_annualized_return(self):
-        return self.returns.mean() * 252
+        if self.returns.empty:
+            return 0.0
+        return float(self.returns.mean() * 252)
 
     def get_annualized_volatility(self):
-        return self.returns.std() * (252**0.5)
+        if self.returns.empty:
+            return 0.0
+        return float(self.returns.std() * (252 ** 0.5))
 
     def get_sharpe_ratio(self, rf=0.04):
         vol = self.get_annualized_volatility()
-        if vol == 0: return 0
+        if vol == 0 or np.isnan(vol):
+            return 0.0
         return (self.get_annualized_return() - rf) / vol
 
     def get_treynor_ratio(self, rf=0.04):
-        # Beta measures systematic risk
-        if self.beta == 0 or self.beta is None: return 0
+        if self.beta == 0 or np.isnan(self.beta):
+            return 0.0
         return (self.get_annualized_return() - rf) / self.beta
 
-    def get_daily_sharpe_series(self, rf_daily=0.00016):  # Approx 4% annual / 252 days
-        """Returns a series of Sharpe Ratios calculated on a rolling basis."""
-        # We use a 20-day rolling window to get a 'daily' sense of the ratio
+    def get_daily_sharpe_series(self, rf_daily=0.00016):
+        if len(self.returns) < 20:
+            return pd.Series(dtype='float64')
         rolling_return = self.returns.rolling(window=20).mean()
         rolling_std = self.returns.rolling(window=20).std()
 
-        daily_sharpe = (rolling_return - rf_daily) / rolling_std
-        return daily_sharpe.dropna()
-
+        # Avoid division by zero in series
+        daily_sharpe = (rolling_return - rf_daily) / rolling_std.replace(0, np.inf)
+        return daily_sharpe.replace([np.inf, -np.inf], 0).dropna()
