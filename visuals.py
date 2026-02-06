@@ -1,217 +1,181 @@
 import matplotlib.pyplot as plt
-import pandas as pd
 import mplfinance as mpf
+import pandas as pd
 
 
 class PortfolioVisuals:
-
     def __init__(self, data):
         self.data = data
 
-    def create_pie_chart(self):  # data is dictionary
-        labels = list(self.data.keys())
-        values = list(self.data.values())
+    def create_pie_chart(self):
+        if not self.data or sum(self.data.values()) == 0:
+            print("⚠️ No portfolio data available for Pie Chart.")
+            return
 
-        fig, ax = plt.subplots()
-        ax.pie(values, labels=labels)
-        plt.show()
+        try:
+            labels = list(self.data.keys())
+            values = list(self.data.values())
+            fig, ax = plt.subplots(figsize=(8, 8))
+            ax.pie(values, labels=labels, autopct='%1.1f%%', startangle=140)
+            ax.set_title("Sector Distribution")
+            plt.show()
+        except Exception as e:
+            print(f"❌ Error rendering Pie Chart: {e}")
 
     def create_benchmark_comparison(self, benchmark_ticker="^GSPC"):
-        import yfinance as yf
-        # self.data is the combined_df from get_portfolio_history
-        port_hist = self.data['TotalValue']
+        if self.data is None or self.data.empty or 'TotalValue' not in self.data.columns:
+            print("⚠️ Insufficient history for benchmark comparison.")
+            return
 
-        bench = yf.download(benchmark_ticker, start=port_hist.index.min(),
-                            end=port_hist.index.max(), progress=False)['Close']
-        if isinstance(bench, pd.DataFrame): bench = bench.iloc[:, 0]
+        try:
+            import yfinance as yf
+            port_hist = self.data['TotalValue']
 
-        # Normalize to 100
-        port_norm = (port_hist / port_hist.iloc[0]) * 100
-        bench_norm = (bench / bench.iloc[0]) * 100
+            # Fetch benchmark with timeout protection
+            bench_df = yf.download(benchmark_ticker, start=port_hist.index.min(),
+                                   end=port_hist.index.max(), progress=False)
 
-        plt.figure(figsize=(12, 6))
-        plt.plot(port_norm.index, port_norm, label='Portfolio', color='#007bff')
-        plt.plot(bench_norm.index, bench_norm, label='S&P 500', color='orange', linestyle='--')
-        plt.title("Portfolio vs Benchmark (Growth of $100)")
-        plt.legend()
-        plt.show()
+            if bench_df.empty:
+                print(f"⚠️ Could not fetch benchmark data for {benchmark_ticker}")
+                return
+
+            bench = bench_df['Close']
+            if isinstance(bench, pd.DataFrame):
+                bench = bench.iloc[:, 0]
+
+            # Reindex benchmark to match portfolio dates to avoid NaN gaps
+            bench = bench.reindex(port_hist.index).ffill()
+
+            # Normalize and handle division by zero
+            port_start = port_hist.iloc[0]
+            bench_start = bench.iloc[0]
+
+            if port_start == 0 or bench_start == 0:
+                print("⚠️ Start value is zero, cannot normalize.")
+                return
+
+            port_norm = (port_hist / port_start) * 100
+            bench_norm = (bench / bench_start) * 100
+
+            plt.figure(figsize=(12, 6))
+            plt.plot(port_norm.index, port_norm, label='Portfolio', color='#007bff')
+            plt.plot(bench_norm.index, bench_norm, label='S&P 500', color='orange', linestyle='--')
+            plt.title(f"Portfolio vs {benchmark_ticker} (Growth of $100)")
+            plt.ylabel("Value")
+            plt.legend()
+            plt.grid(True, alpha=0.3)
+            plt.show()
+        except Exception as e:
+            print(f"❌ Error rendering Benchmark Chart: {e}")
 
     def create_risk_reward_scatter(self):
-        # self.data is the list from get_risk_reward_data
-        tickers = [s['ticker'] for s in self.data]
-        vols = [s['vol'] for s in self.data]
-        returns = [s['return'] for s in self.data]
-        sharpes = [s['sharpe'] for s in self.data]
+        if not self.data or len(self.data) < 1:
+            print("⚠️ Not enough stock data for Risk-Reward scatter.")
+            return
 
-        plt.figure(figsize=(10, 6))
-        scatter = plt.scatter(vols, returns, c=sharpes, cmap='RdYlGn', s=100)
-        for i, txt in enumerate(tickers):
-            plt.annotate(txt, (vols[i], returns[i]))
+        try:
+            tickers = [s.get('ticker', 'Unknown') for s in self.data]
+            vols = [s.get('vol', 0) for s in self.data]
+            returns = [s.get('return', 0) for s in self.data]
+            sharpes = [s.get('sharpe', 0) for s in self.data]
 
-        plt.colorbar(scatter, label='Sharpe Ratio')
-        plt.xlabel('Risk (Volatility)')
-        plt.ylabel('Return (Annualized)')
-        plt.title('Risk-Reward Analysis')
-        plt.show()
+            plt.figure(figsize=(10, 6))
+            scatter = plt.scatter(vols, returns, c=sharpes, cmap='RdYlGn', s=100, edgecolors='black')
 
-    def create_daily_sharpe_scatter(self):
-        df_sharpe = self.data
+            for i, txt in enumerate(tickers):
+                plt.annotate(txt, (vols[i], returns[i]), xytext=(5, 5), textcoords='offset points')
 
-        plt.figure(figsize=(12, 6))
-
-        # We use a scatter plot where the color changes based on the value
-        # Green for positive Sharpe (efficiency), Red for negative
-        colors = ['green' if val > 0 else 'red' for val in df_sharpe]
-
-        plt.scatter(df_sharpe.index, df_sharpe.values, c=colors, alpha=0.6, s=15)
-
-        # Add a horizontal line at 0 for reference
-        plt.axhline(0, color='black', linestyle='--', alpha=0.5)
-
-        plt.title("Portfolio Daily Sharpe Ratio (20-Day Rolling Window)", fontsize=14)
-        plt.ylabel("Sharpe Ratio")
-        plt.xlabel("Date")
-        plt.grid(True, alpha=0.2)
-
-            # Clean up date formatting
-        plt.gcf().autofmt_xdate()
-        plt.show()
+            plt.colorbar(scatter, label='Sharpe Ratio')
+            plt.xlabel('Risk (Volatility)')
+            plt.ylabel('Return (Annualized)')
+            plt.title('Portfolio Risk-Reward Analysis')
+            plt.axhline(0, color='black', alpha=0.2)
+            plt.axvline(0, color='black', alpha=0.2)
+            plt.show()
+        except Exception as e:
+            print(f"❌ Error rendering Scatter Plot: {e}")
 
 
 class StockVisuals:
     def __init__(self, data):
         self.data = data
 
-    def create_line_graph(self):  # data is Pandas dataframe
-        df = self.data.copy()
-        df = df['Close']
-        fig, ax = plt.subplots(figsize=(10, 6))
-        df.plot(ax=ax)
+    def _validate_data(self):
+        """Internal helper to check if data is valid for plotting."""
+        if self.data is None or self.data.empty:
+            print("⚠️ No data available to plot.")
+            return False
+        if 'Close' not in self.data.columns:
+            print("⚠️ Data is missing 'Close' column.")
+            return False
+        return True
 
-        ax.set_title("Stock Closing Prices")
-        ax.set_xlabel("Date")
-        ax.set_ylabel("Price (USD)")
-        plt.show()
+    def create_line_graph(self):
+        if not self._validate_data():
+            return
+
+        try:
+            df = self.data['Close'].copy()
+            fig, ax = plt.subplots(figsize=(10, 6))
+            df.plot(ax=ax, color='#007bff')
+            ax.set_title("Stock Closing Prices")
+            ax.set_ylabel("Price (USD)")
+            ax.grid(True, alpha=0.3)
+            plt.show()
+        except Exception as e:
+            print(f"❌ Error in Line Graph: {e}")
 
     def create_volatility_chart(self, ticker="Stock"):
-        df = self.data.copy()
+        if not self._validate_data() or len(self.data) < 20:
+            print("⚠️ Need at least 20 days of data for Volatility Chart.")
+            return
 
-        # 1. Calculate Bollinger Bands
-        # Standard period of 20, with 2 standard deviations
-        df['SMA'] = df['Close'].rolling(window=20).mean()
-        df['STD'] = df['Close'].rolling(window=20).std()
-        df['Upper'] = df['SMA'] + (df['STD'] * 2)
-        df['Lower'] = df['SMA'] - (df['STD'] * 2)
+        try:
+            df = self.data.copy()
+            df['SMA'] = df['Close'].rolling(window=20).mean()
+            df['STD'] = df['Close'].rolling(window=20).std()
+            df['Upper'] = df['SMA'] + (df['STD'] * 2)
+            df['Lower'] = df['SMA'] - (df['STD'] * 2)
 
-        # 2. Logic for Overbought/Oversold Markers
-        # We only want to label a few points so the chart isn't messy
-        df['Marker'] = None
-        for i in range(len(df)):
-            if df['Close'].iloc[i] > df['Upper'].iloc[i]:
-                df.at[df.index[i], 'Marker'] = df['High'].iloc[i] * 1.02  # Point above
-            elif df['Close'].iloc[i] < df['Lower'].iloc[i]:
-                df.at[df.index[i], 'Marker'] = df['Low'].iloc[i] * 0.98  # Point below
+            # Drop NaN rows for cleaner mpf plotting
+            df = df.dropna()
 
-        # 3. Define the Plotting Elements (Add-ons)
-        # Gold lines for the bands and a shaded region
-        apds = [
-            mpf.make_addplot(df['Upper'], color='#B8860B', width=1.5),  # DarkGold
-            mpf.make_addplot(df['Lower'], color='#B8860B', width=1.5),
-            mpf.make_addplot(df['SMA'], color='#808080', width=0.8, alpha=0.5)  # Middle line
-        ]
+            apds = [
+                mpf.make_addplot(df['Upper'], color='#B8860B', width=1.0),
+                mpf.make_addplot(df['Lower'], color='#B8860B', width=1.0),
+                mpf.make_addplot(df['SMA'], color='#808080', width=0.8, alpha=0.5)
+            ]
 
-        # 4. Create the Plot
-        # 'charles' is the theme for green/red candles
-        # 'fill_between' creates that gray cloud effect
-        fig, axlist = mpf.plot(
-            df,
-            type='candle',
-            style='charles',
-            addplot=apds,
-            fill_between=dict(y1=df['Lower'].values, y2=df['Upper'].values, color='gray', alpha=0.1),
-            title=f"\n{ticker} Volatility Analysis",
-            ylabel='Price (USD)',
-            volume=False,
-            tight_layout=True,
-            datetime_format='%b %Y',
-            returnfig=True,
-            figscale=1.2
-        )
+            mpf.plot(df, type='candle', style='charles', addplot=apds,
+                     fill_between=dict(y1=df['Lower'].values, y2=df['Upper'].values, color='gray', alpha=0.1),
+                     title=f"{ticker} Volatility (Bollinger Bands)",
+                     ylabel='Price (USD)', tight_layout=True)
+        except Exception as e:
+            print(f"❌ Error in Volatility Chart: {e}")
 
-        # 5. Add Custom Text Labels (Overbought/Oversold)
-        # We find where markers exist and draw the little boxes from your image
-        ax = axlist[0]
-        for i in range(len(df)):
-            if df['Close'].iloc[i] > df['Upper'].iloc[i] and i % 5 == 0:  # label every 5th to avoid clutter
-                ax.text(i, df['High'].iloc[i], 'Overbought', fontsize=8, color='white',
-                        bbox=dict(facecolor='#FF4500', alpha=0.8, boxstyle='round,pad=0.3'))
-            elif df['Close'].iloc[i] < df['Lower'].iloc[i] and i % 5 == 0:
-                ax.text(i, df['Low'].iloc[i], 'Oversold', fontsize=8, color='white',
-                        bbox=dict(facecolor='#1E90FF', alpha=0.8, boxstyle='round,pad=0.3'))
-
-        plt.show()
-
-    def create_rsi_analysis(self):
-        df = self.data.copy()
-
-        # 1. Calculate RSI
-        delta = df['Close'].diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-        rs = gain / loss
-        df['RSI'] = 100 - (100 / (1 + rs))
-
-        # 2. Setup Subplots (2 Rows: Price/Volume and RSI)
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), gridspec_kw={'height_ratios': [3, 1]})
-
-        # Top Plot: Price and Moving Averages
-        ax1.plot(df.index, df['Close'], label='Price', color='black', alpha=0.7)
-        ax1.set_title(f"Advanced Analysis")
-        ax1.legend(loc='upper left')
-        ax1.grid(True, alpha=0.3)
-
-        # Bottom Plot: RSI
-        ax2.plot(df.index, df['RSI'], label='RSI (14)', color='purple')
-        ax2.axhline(70, color='red', linestyle='--', alpha=0.5)  # Overbought line
-        ax2.axhline(30, color='green', linestyle='--', alpha=0.5)  # Oversold line
-        ax2.set_ylim(0, 100)
-        ax2.set_ylabel('RSI')
-        ax2.legend(loc='upper left')
-
-        plt.tight_layout()
-        plt.show()
     def create_price_volume_line_chart(self, ticker="Stock"):
-        df = self.data.copy()
+        if not self._validate_data() or 'Volume' not in self.data.columns:
+            print("⚠️ Missing Price or Volume data.")
+            return
 
-        # 1. Setup the figure with two rows (Price on top, Volume on bottom)
-        # sharex=True ensures that zooming/panning on one chart moves the other
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True,
-                                       gridspec_kw={'height_ratios': [3, 1]})
+        try:
+            df = self.data.copy()
+            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True,
+                                           gridspec_kw={'height_ratios': [3, 1]})
 
-        # --- TOP PLOT: PRICE ---
-        ax1.plot(df.index, df['Close'], color='#007bff', linewidth=2, label='Price')
-        ax1.fill_between(df.index, df['Close'], df['Close'].min() * 0.99, color='#007bff', alpha=0.1)
+            ax1.plot(df.index, df['Close'], color='#007bff', linewidth=1.5)
+            ax1.fill_between(df.index, df['Close'], df['Close'].min() * 0.98, alpha=0.1)
+            ax1.set_title(f"{ticker} Performance")
+            ax1.set_ylabel("Price ($)")
 
-        ax1.set_title(f"{ticker} Performance & Volume", fontsize=14, pad=15)
-        ax1.set_ylabel('Price (USD)', fontweight='bold')
-        ax1.grid(True, linestyle=':', alpha=0.6)
-        ax1.legend(loc='upper left')
+            # Volume coloring logic
+            diff = df['Close'].diff().fillna(0)
+            colors = ['green' if d >= 0 else 'red' for d in diff]
+            ax2.bar(df.index, df['Volume'], color=colors, alpha=0.5)
+            ax2.set_ylabel("Volume")
 
-        # --- BOTTOM PLOT: VOLUME ---
-        # Color-code: Green if price increased from yesterday, Red if it decreased
-        price_diff = df['Close'].diff()
-        colors = ['green' if diff >= 0 else 'red' for diff in price_diff]
-        if len(colors) > 0: colors[0] = 'green'  # Default first bar
-
-        ax2.bar(df.index, df['Volume'], color=colors, alpha=0.6, width=0.8)
-
-        ax2.set_ylabel('Volume', fontweight='bold')
-        ax2.grid(True, linestyle=':', alpha=0.4)
-
-        # Clean up date formatting
-        fig.autofmt_xdate()
-
-        plt.tight_layout()
-        # Adjust space between subplots to be minimal
-        plt.subplots_adjust(hspace=0.05)
-        plt.show()
+            plt.subplots_adjust(hspace=0.05)
+            plt.gcf().autofmt_xdate()
+            plt.show()
+        except Exception as e:
+            print(f"❌ Error in Price/Volume Chart: {e}")

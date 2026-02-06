@@ -1,5 +1,6 @@
 from stock import Stock
 import pandas as pd
+import numpy as np
 
 
 class StockPortfolio:
@@ -8,140 +9,155 @@ class StockPortfolio:
         self.stocks = {}  # {ticker: Stock object}
 
     def add_stock(self, ticker_symbol, quantity=1):
-        """Add a Stock object to the portfolio."""
-        ticker = ticker_symbol.upper()
-        stock = Stock(ticker, quantity)
-        if ticker in self.stocks:
-            self.stocks[ticker].increase_quantity(stock.get_quantity_held())
-        else:
-            self.stocks[ticker] = stock
+        """Add a Stock object with error catching for invalid tickers."""
+        try:
+            ticker = ticker_symbol.upper()
+            if ticker in self.stocks:
+                self.stocks[ticker].increase_quantity(quantity)
+            else:
+                # This will trigger the ValueError in Stock.__init__ if ticker is fake
+                self.stocks[ticker] = Stock(ticker, quantity)
+        except Exception as e:
+            print(f"Failed to add {ticker_symbol}: {e}")
+            raise  # Re-raise so the Frontend can show an error message
 
     def sell_stock(self, ticker_symbol, quantity):
         ticker = ticker_symbol.upper()
         if ticker not in self.stocks:
-            raise KeyError(f"{ticker} not found in portfolio.")
+            raise KeyError(f"Ticker {ticker} not found in portfolio.")
 
-        self.stocks[ticker].decrease_quantity(quantity)
-
-    def remove_stock(self, ticker_symbol):
-        """Remove a stock from the portfolio by ticker symbol."""
-        ticker = ticker_symbol.upper()
-        if ticker not in self.stocks:
-            raise KeyError(f"{ticker} not found in portfolio.")
-        del self.stocks[ticker]
-
-    def get_stock(self, ticker_symbol):
-        """Retrieve a stock by ticker symbol."""
-        return self.stocks.get(ticker_symbol.upper(), None)
+        try:
+            self.stocks[ticker].decrease_quantity(quantity)
+            # If quantity hits 0, we might want to keep it or remove it.
+            # Usually, in a tracker, we keep it with 0 qty unless explicitly removed.
+        except ValueError as e:
+            raise ValueError(f"Transaction failed: {e}")
 
     def get_portfolio_value(self):
-        """Calculate total market value of all holdings."""
-        total_portfolio_value = 0
-        for stock in self.stocks.values():
-            total_portfolio_value += stock.get_total_value()
-
-        return total_portfolio_value
+        """Safe calculation of total value."""
+        if not self.stocks:
+            return 0.0
+        return sum(stock.get_total_value() for stock in self.stocks.values())
 
     def holding_by_sector(self):
-        sector_value_dict = {}  # {sector : total value held}
-        total_portfolio_value = self.get_portfolio_value()
+        """Calculates sector distribution with ZeroDivision protection."""
+        if not self.stocks:
+            return {}
+
+        sector_value_dict = {}
+        total_value = self.get_portfolio_value()
+
+        if total_value == 0:
+            return {stock.company_info.sector: 0.0 for stock in self.stocks.values()}
 
         for stock in self.stocks.values():
-            sector = stock.company_info.sector
+            sector = stock.company_info.sector or "Unknown"
             value = stock.get_total_value()
-
             sector_value_dict[sector] = sector_value_dict.get(sector, 0) + value
 
-        for key in sector_value_dict:
-            sector_value_dict[key] = round(float(sector_value_dict[key]) / total_portfolio_value * 100, 2)
-
-        return sector_value_dict
-
-    def track_one_year_change(self):
-        dollar_change = 0
-        for stock in self.stocks.values():
-            dollar_change += stock.change.yearly()[0]
-
-        return round(dollar_change, 2)
-
-    def sort_by_highest_value(self):
-        return sorted(self.stocks.values(), key=lambda s: s.get_total_value(), reverse=True)
-
-    def refresh_all_data(self):
-        """Refresh all stock data using yfinance."""
-        for stock in self.stocks.values():
-            stock.refresh_data()
-
-    def detailed_summary(self):
-        """Return a clean, tabular summary of all holdings."""
-        if not self.stocks:
-            return f"Portfolio '{self.name}' is empty."
-
-        lines = [f"\n{'=' * 70}", f"PORTFOLIO SUMMARY: {self.name}", f"{'=' * 70}",
-                 f"{'Ticker':<8}{'Company':<25}{'Qty':<8}{'Price ($)':<12}{'Value ($)':<12}", "-" * 70]
-        for stock in self.stocks.values():
-            total_value = stock.get_total_value()
-            lines.append(
-                f"{stock.ticker_symbol:<8}"
-                f"{stock.company_info.name[:24]:<25}"
-                f"{stock.get_quantity_held():<8}"
-                f"{stock.market_data.current_price:<12.2f}"
-                f"{total_value:<12.2f}"
-            )
-        lines.append("-" * 70)
-        lines.append(f"Total Portfolio Value: ${self.get_portfolio_value():,.2f}")
-        lines.append(f"{'=' * 70}\n")
-        return "\n".join(lines)
-
-    def __str__(self):
-        return f"Portfolio '{self.name}' | Holdings: {len(self.stocks)} | Total Value: ${self.get_portfolio_value():,.2f}"
+        # Convert to percentages
+        return {k: round((v / total_value) * 100, 2) for k, v in sector_value_dict.items()}
 
     def get_portfolio_history(self, days=365):
-        """Merges all stock histories into a single Total Value DataFrame."""
+        """
+        Merges histories. Uses 'outer' join to prevent missing data in one stock
+        from deleting the entire portfolio's history.
+        """
+        if not self.stocks:
+            return pd.DataFrame(columns=['TotalValue'])
+
         combined_df = pd.DataFrame()
 
         for ticker, stock in self.stocks.items():
-            hist = stock.history.get_days(days)['Close']
-            if isinstance(hist, pd.DataFrame): hist = hist.iloc[:, 0]
+            try:
+                # Fetch history and handle potential Empty DataFrames
+                hist_data = stock.history.get_days(days)
+                if hist_data.empty:
+                    continue
 
-            # Calculate value: Price * Quantity
-            stock_value_series = hist * stock.get_quantity_held()
+                prices = hist_data['Close']
+                if isinstance(prices, pd.DataFrame):
+                    prices = prices.iloc[:, 0]
 
-            if combined_df.empty:
-                combined_df['TotalValue'] = stock_value_series
-            else:
-                combined_df['TotalValue'] = combined_df['TotalValue'].add(stock_value_series, fill_value=0)
+                stock_value_series = prices * stock.get_quantity_held()
 
-            return combined_df.dropna()
+                if combined_df.empty:
+                    combined_df['TotalValue'] = stock_value_series
+                else:
+                    combined_df['TotalValue'] = combined_df['TotalValue'].add(stock_value_series, fill_value=0)
+            except Exception as e:
+                print(f"Warning: Could not include {ticker} in history: {e}")
+                continue
+
+        return combined_df.sort_index().ffill().dropna()
 
     def get_risk_reward_data(self):
-        """Compiles stats for all stocks for the scatter plot."""
+        """Safe compilation of risk metrics for scatter plots."""
         stats = []
         for ticker, stock in self.stocks.items():
+            # Check if risk_metrics exists (might be None if history fetch failed)
             rm = stock.risk_metrics
+            if rm is None:
+                continue
 
-            stats.append({
-                'ticker': ticker,
-                'return': rm.get_annualized_return(),
-                'vol': rm.get_annualized_volatility(),
-                'sharpe': rm.get_sharpe_ratio(),
-                'treynor': rm.get_treynor_ratio()
-            })
+            try:
+                stats.append({
+                    'ticker': ticker,
+                    'return': rm.get_annualized_return() or 0.0,
+                    'vol': rm.get_annualized_volatility() or 0.0,
+                    'sharpe': rm.get_sharpe_ratio() or 0.0,
+                    'treynor': rm.get_treynor_ratio() or 0.0
+                })
+            except Exception:
+                continue
         return stats
 
     def get_portfolio_daily_sharpe(self):
-        """Calculates the Sharpe Ratio of the entire portfolio for every day in the year."""
-        portfolio_history = self.get_portfolio_history(days=365)
+        """Calculates daily Sharpe with protection against empty history or low volatility."""
+        try:
+            portfolio_history = self.get_portfolio_history(days=365)
+            if portfolio_history.empty or len(portfolio_history) < 20:
+                return pd.Series(dtype='float64')
 
-        # Calculate daily returns of the total portfolio value
-        port_returns = portfolio_history['TotalValue'].pct_change().dropna()
+            port_returns = portfolio_history['TotalValue'].pct_change().fillna(0)
+            rf_daily = 0.04 / 252
 
-        # Risk-free rate (daily)
-        rf_daily = 0.04 / 252
+            rolling_mu = port_returns.rolling(window=20).mean()
+            rolling_sigma = port_returns.rolling(window=20).std()
 
-        # Rolling 20-day Sharpe to show 'daily' movement
-        rolling_mu = port_returns.rolling(window=20).mean()
-        rolling_sigma = port_returns.rolling(window=20).std()
+            # Replace 0 sigma with NaN to avoid division by zero, then fill with 0
+            daily_sharpe = (rolling_mu - rf_daily) / rolling_sigma.replace(0, np.nan)
+            return daily_sharpe.fillna(0).dropna()
+        except Exception as e:
+            print(f"Daily Sharpe calculation error: {e}")
+            return pd.Series(dtype='float64')
 
-        daily_sharpe = (rolling_mu - rf_daily) / rolling_sigma
-        return daily_sharpe.dropna()
+    def detailed_summary(self):
+        """Clean summary with formatting protection."""
+        if not self.stocks:
+            return f"Portfolio '{self.name}' is currently empty."
+
+        header = f"\n{'=' * 85}\nPORTFOLIO SUMMARY: {self.name}\n{'=' * 85}\n"
+        columns = f"{'Ticker':<8}{'Company':<30}{'Qty':<10}{'Price ($)':<15}{'Value ($)':<15}\n"
+        divider = "-" * 85 + "\n"
+
+        lines = [header, columns, divider]
+
+        for stock in self.stocks.values():
+            try:
+                name = (stock.company_info.name[:28] + '..') if len(
+                    stock.company_info.name) > 30 else stock.company_info.name
+                lines.append(
+                    f"{stock.ticker_symbol:<8}"
+                    f"{name:<30}"
+                    f"{stock.get_quantity_held():<10}"
+                    f"{stock.market_data.current_price:<15,.2f}"
+                    f"{stock.get_total_value():<15,.2f}\n"
+                )
+            except Exception:
+                continue
+
+        lines.append(divider)
+        lines.append(f"TOTAL PORTFOLIO VALUE: ${self.get_portfolio_value():,.2f}\n")
+        lines.append('=' * 85 + "\n")
+        return "".join(lines)
