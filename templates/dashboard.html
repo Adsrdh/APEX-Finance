@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2>Your Portfolio</h2>
+
+<h4>Total Value: ${{ "%.2f"|format(total_value) }}</h4>
+
+<h5>Add Stock</h5>
+<form method="POST" action="{{ url_for('add_stock') }}" class="row g-2">
+    <div class="col">
+        <input class="form-control" name="ticker" placeholder="Ticker (AAPL)">
+    </div>
+    <div class="col">
+        <input class="form-control" name="quantity" placeholder="Quantity" type="number" step="any">
+    </div>
+    <div class="col">
+        <button class="btn btn-primary">Add</button>
+    </div>
+</form>
+
+<hr>
+
+<h5>Holdings</h5>
+<table class="table">
+    <tr>
+        <th>Ticker</th>
+        <th>Quantity</th>
+        <th>Action</th>
+    </tr>
+    {% for h in holdings %}
+    <tr>
+        <td>{{ h.ticker }}</td>
+        <td>{{ h.quantity }}</td>
+        <td>
+            <form method="POST" action="{{ url_for('remove_stock', holding_id=h.id) }}">
+                <button class="btn btn-danger btn-sm">Remove</button>
+            </form>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+
+<hr>
+
+<h5>Sector Allocation</h5>
+<ul>
+    {% for sector, percent in sector_data.items() %}
+        <li>{{ sector }}: {{ percent }}%</li>
+    {% endfor %}
+</ul>
+
+{% endblock %}
