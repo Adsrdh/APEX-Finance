@@ -1,11 +1,176 @@
+/* Core Fintech Theme */
+:root {
+    --bg-slate: #0f172a;
+    --surface-slate: #1e293b;
+    --primary-blue: #3b82f6;
+    --emerald: #10b981;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+}
+
 body {
-    background-color: #f5f7fa;
+    background-color: var(--bg-slate) !important;
+    color: var(--text-main) !important;
+    font-family: 'Inter', sans-serif;
+    margin: 0;
+    padding: 0;
 }
 
-h2, h4, h5 {
-    color: #1f2d3d;
+/* Force the background on the entire HTML element */
+html {
+    background-color: var(--bg-slate);
 }
 
-.table {
-    background: white;
+.bg-dark-slate {
+    background-color: var(--bg-slate) !important;
+}
+
+/* Card Styling */
+.bg-surface {
+    background-color: var(--surface-slate) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    border-radius: 16px !important;
+}
+
+/* Input Styling - Deep Dark */
+.form-control {
+    background-color: #020617 !important;
+    border: 1px solid #334155 !important;
+    color: white !important;
+    border-radius: 8px;
+}
+
+.form-control:focus {
+    border-color: var(--primary-blue) !important;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1) !important;
+}
+
+/* Button Elevation */
+.btn-primary {
+    background-color: var(--primary-blue) !important;
+    border: none !important;
+    font-weight: 600;
+    padding: 10px 20px;
+    border-radius: 8px;
+}
+
+.text-muted {
+    color: var(--text-muted) !important;
+}
+
+:root {
+    --bg-color: #0f172a;
+    --surface-color: #1e293b;
+    --primary-blue: #3b82f6;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+}
+
+body.bg-dark-slate {
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    font-family: 'Inter', sans-serif;
+    letter-spacing: -0.01em;
+}
+
+.vh-80 { height: 80vh; }
+
+.bg-surface {
+    background-color: var(--surface-color) !important;
+}
+
+.form-control:focus {
+    background-color: #0f172a;
+    border-color: var(--primary-blue);
+    color: white;
+    box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.25);
+}
+
+.btn-primary {
+    background-color: var(--primary-blue);
+    border: none;
+    transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+    background-color: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.navbar-brand {
+    letter-spacing: 0.1rem;
+}
+
+/* Custom Scrollbar for that pro look */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-color); }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+
+.extra-small {
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    opacity: 0.6;
+}
+
+.btn-success {
+    transition: all 0.2s ease;
+}
+
+.btn-success:hover {
+    background-color: #059669 !important; /* Slightly darker emerald */
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+/* Subtle input focus for signup specifically */
+input[name="password"]:focus {
+    border-color: #10b981 !important;
+    box-shadow: 0 0 0 0.25rem rgba(16, 185, 129, 0.2) !important;
+}
+
+.border-dashed {
+    border: 2px dashed rgba(255, 255, 255, 0.1) !important;
+}
+
+.badge {
+    font-weight: 700;
+    letter-spacing: 0.05em;
+}
+
+.table > :not(caption) > * > * {
+    border-bottom-color: rgba(255, 255, 255, 0.03);
+    padding: 1rem 0.5rem;
+}
+
+.progress-bar {
+    border-radius: 10px;
+    background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);
+}
+
+.modal-content {
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+}
+
+/* Ensure Sidebar stays fixed while content scrolls */
+.vh-100 { height: 100vh !important; }
+
+.bg-dark-slate { background-color: #0f172a !important; }
+
+/* Metrics text override to white as requested */
+h1.text-white {
+    color: #ffffff !important;
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.05);
+}
+
+.border-dashed {
+    border-style: dashed !important;
+    border-width: 1px !important;
+}
+
+/* Sidebar Hover States */
+.btn-outline-secondary:hover {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    color: white !important;
 }

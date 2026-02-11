@@ -1,13 +1,31 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Login</h2>
-<form method="POST">
-    <input class="form-control mb-2" name="email" placeholder="Email">
-    <input class="form-control mb-2" name="password" type="password" placeholder="Password">
-    <button class="btn btn-primary">Login</button>
-</form>
+<div class="row justify-content-center align-items-center vh-80">
+    <div class="col-md-5 col-lg-4">
+        <div class="card bg-surface border-0 shadow-lg p-4">
+            <div class="text-center mb-4">
+                <i class="bi bi-shield-lock text-primary display-4"></i>
+                <h2 class="fw-bold mt-3 text-white">Welcome Back</h2>
+                <p class="text-muted">Enter your credentials to access your terminal</p>
+            </div>
 
-<p class="mt-3">
-    No account? <a href="{{ url_for('signup') }}">Sign up</a>
-</p>
+            <form method="POST">
+                <div class="mb-3">
+                    <label class="form-label text-secondary small fw-bold">EMAIL ADDRESS</label>
+                    <input type="email" class="form-control bg-dark border-secondary border-opacity-25 text-white py-2" name="email" placeholder="name@company.com" required>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label text-secondary small fw-bold">PASSWORD</label>
+                    <input type="password" class="form-control bg-dark border-secondary border-opacity-25 text-white py-2" name="password" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 py-2 fw-bold">Sign In</button>
+            </form>
+
+            <div class="text-center mt-4">
+                <span class="text-muted small">New to NovaFinance?</span>
+                <a href="{{ url_for('signup') }}" class="text-primary small fw-bold text-decoration-none ms-1">Create an account</a>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

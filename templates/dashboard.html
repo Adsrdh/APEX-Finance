@@ -1,52 +1,94 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h2>Your Portfolio</h2>
-
-<h4>Total Value: ${{ "%.2f"|format(total_value) }}</h4>
-
-<h5>Add Stock</h5>
-<form method="POST" action="{{ url_for('add_stock') }}" class="row g-2">
-    <div class="col">
-        <input class="form-control" name="ticker" placeholder="Ticker (AAPL)">
+<div class="row g-0 vh-100 overflow-hidden" style="margin-top: -3rem;">
+    <div class="col-md-2 bg-surface border-end border-secondary border-opacity-10 p-3">
+    <h6 class="extra-small text-secondary mb-4">Your Portfolios</h6>
+    <div class="d-grid gap-2 mb-4">
+        {% for p in current_user.portfolios %}
+        <a href="{{ url_for('dashboard', p_id=p.id) }}"
+           class="btn btn-sm {% if p.id == active_portfolio_db.id %}btn-primary{% else %}btn-outline-secondary text-start border-0{% endif %}">
+            <i class="bi bi-folder2-open me-2"></i>{{ p.name }}
+        </a>
+        {% endfor %}
     </div>
-    <div class="col">
-        <input class="form-control" name="quantity" placeholder="Quantity" type="number" step="any">
+</div>
+        <hr class="border-secondary opacity-10">
+        <button class="btn btn-sm btn-outline-info w-100 mb-2" data-bs-toggle="modal" data-bs-target="#csvImportModal">
+            <i class="bi bi-file-earmark-arrow-up me-2"></i>Import CSV
+        </button>
     </div>
-    <div class="col">
-        <button class="btn btn-primary">Add</button>
-    </div>
-</form>
 
-<hr>
+    <div class="col-md-10 overflow-auto p-4 bg-dark-slate">
 
-<h5>Holdings</h5>
-<table class="table">
+        <div class="card bg-surface border-0 mb-4 py-2 px-3">
+            <div class="d-flex align-items-center justify-content-between">
+                <div class="d-flex gap-4">
+                    <a href="#" class="text-white text-decoration-none small fw-bold border-bottom border-primary pb-1">OVERVIEW</a>
+                    <a href="#" class="text-secondary text-decoration-none small fw-bold">RISK (SHARPE)</a>
+                    <a href="#" class="text-secondary text-decoration-none small fw-bold">BENCHMARK</a>
+                    <a href="#" class="text-secondary text-decoration-none small fw-bold">TREYNOR</a>
+                </div>
+                <div class="text-muted extra-small">
+                    ACTIVE TERMINAL: <span class="text-primary">{{ portfolio.name }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <div class="card bg-surface border-0 p-3">
+                    <h6 class="text-secondary extra-small fw-bold">TOTAL MARKET VALUE</h6>
+                    <h1 class="text-white fw-bold mb-0">${{ "{:,.2f}".format(total_value) }}</h1>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card bg-surface border-0 p-3">
+                    <h6 class="text-secondary extra-small fw-bold">ACTIVE SECTORS</h6>
+                    <h1 class="text-white fw-bold mb-0">{{ sector_data|length }}</h1>
+                </div>
+            </div>
+        </div>
+
+        <div class="card bg-surface border-0 mb-4">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover mb-0">
+                    <thead class="extra-small text-secondary">
+                        <tr>
+                            <th class="ps-4">ASSET</th>
+                            <th>PRICE</th>
+                            <th>QTY</th>
+                            <th>MARKET VALUE</th>
+                            <th class="text-end pe-4">MANAGEMENT</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+    {% for stock in portfolio.stocks.values() %}
     <tr>
-        <th>Ticker</th>
-        <th>Quantity</th>
-        <th>Action</th>
-    </tr>
-    {% for h in holdings %}
-    <tr>
-        <td>{{ h.ticker }}</td>
-        <td>{{ h.quantity }}</td>
-        <td>
-            <form method="POST" action="{{ url_for('remove_stock', holding_id=h.id) }}">
-                <button class="btn btn-danger btn-sm">Remove</button>
+        <td class="ps-4">
+            <span class="text-white fw-bold">{{ stock.ticker_symbol }}</span>
+            <div class="extra-small text-muted">{{ stock.company_info.name[:20] }}</div>
+        </td>
+        <td>${{ "{:,.2f}".format(stock.market_data.current_price) }}</td>
+        <td>{{ stock.get_quantity_held() }}</td>
+        <td class="text-white fw-bold">${{ "{:,.2f}".format(stock.get_total_value()) }}</td>
+
+        <td class="text-end pe-4">
+            {% for h in active_portfolio_db.holdings if h.ticker == stock.ticker_symbol %}
+            <form method="POST" action="{{ url_for('remove_stock', holding_id=h.id) }}" style="display:inline;">
+                <button class="btn btn-sm btn-outline-danger border-0 py-0">SELL</button>
             </form>
+            {% endfor %}
         </td>
     </tr>
     {% endfor %}
-</table>
+</tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
 
-<hr>
-
-<h5>Sector Allocation</h5>
-<ul>
-    {% for sector, percent in sector_data.items() %}
-        <li>{{ sector }}: {{ percent }}%</li>
-    {% endfor %}
-</ul>
+{% include 'modals/portfolio_modals.html' %}
 
 {% endblock %}
