@@ -174,3 +174,48 @@ h1.text-white {
     background-color: rgba(255, 255, 255, 0.05) !important;
     color: white !important;
 }
+
+/* Layout Tweaks for Blueprint Alignment */
+.vh-75 {
+    height: 100vh;
+}
+
+.logo-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.auth-card .card {
+    border-radius: 20px !important;
+}
+
+/* Ensure the background stays dark even during transitions */
+html, body {
+    overflow-x: hidden;
+    height: 100%;
+}
+
+.hover-elevate {
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+.hover-elevate:hover {
+    transform: translateY(-5px);
+    background-color: #243049 !important; /* Slightly lighter slate */
+    border-color: rgba(59, 130, 246, 0.4) !important;
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5) !important;
+    cursor: pointer;
+}
+
+/* Sidebar Nav styling */
+#sidebarMenu .nav-link {
+    transition: all 0.2s ease;
+}
+
+#sidebarMenu .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: white !important;
+}
+

@@ -1,22 +1,22 @@
 {% extends "base.html" %}
-{% block content %}
-<div class="row justify-content-center align-items-center vh-80">
-    <div class="col-md-5 col-lg-4">
-        <div class="card bg-surface border-0 shadow-lg p-4">
+{% block unauth_content %}
+<div class="d-flex flex-column justify-content-center align-items-center vh-75">
+    <div class="auth-card col-md-5 col-lg-4">
+        <div class="card bg-surface border-0 shadow-lg p-5">
             <div class="text-center mb-4">
-                <i class="bi bi-shield-lock text-primary display-4"></i>
-                <h2 class="fw-bold mt-3 text-white">Welcome Back</h2>
-                <p class="text-muted">Enter your credentials to access your terminal</p>
+                <i class="bi bi-shield-lock text-primary display-5"></i>
+                <h2 class="fw-bold mt-3 text-white">Login</h2>
+                <p class="text-muted small">Enter your credentials to access your Portfolio Manager</p>
             </div>
 
             <form method="POST">
                 <div class="mb-3">
-                    <label class="form-label text-secondary small fw-bold">EMAIL ADDRESS</label>
-                    <input type="email" class="form-control bg-dark border-secondary border-opacity-25 text-white py-2" name="email" placeholder="name@company.com" required>
+                    <label class="form-label text-secondary extra-small fw-bold">EMAIL ADDRESS</label>
+                    <input type="email" class="form-control bg-dark border-secondary border-opacity-25 text-white py-2" name="email" required>
                 </div>
                 <div class="mb-4">
-                    <label class="form-label text-secondary small fw-bold">PASSWORD</label>
-                    <input type="password" class="form-control bg-dark border-secondary border-opacity-25 text-white py-2" name="password" placeholder="••••••••" required>
+                    <label class="form-label text-secondary extra-small fw-bold">PASSWORD</label>
+                    <input type="password" class="form-control bg-dark border-secondary border-opacity-25 text-white py-2" name="password" required>
                 </div>
                 <button type="submit" class="btn btn-primary w-100 py-2 fw-bold">Sign In</button>
             </form>

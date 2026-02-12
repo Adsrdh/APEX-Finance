@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="pt-3 pb-2 mb-3 border-bottom border-secondary border-opacity-10">
+    <h1 class="h2 text-white fw-bold">Hello, {{ current_user.email.split('@')[0]|capitalize }}</h1>
+    <p class="text-secondary small">Access your Stock Portfolios below.</p>
+</div>
+
+<div class="row g-4 mt-2">
+    {% if not current_user.portfolios %}
+    <div class="col-12 text-center py-5">
+        <div class="card bg-surface border-0 p-5 rounded-4 border-dashed">
+            <i class="bi bi-plus-circle text-primary display-1 mb-3"></i>
+            <h3 class="text-white">No active Portfolios detected</h3>
+            <p class="text-secondary">Initialize your first portfolio or import a CSV to begin analysis.</p>
+            <button class="btn btn-primary mt-3 px-4" data-bs-toggle="modal" data-bs-target="#initPortfolioModal">
+                Create New Portfolio
+            </button>
+        </div>
+    </div>
+    {% else %}
+        {% for p in current_user.portfolios %}
+        <div class="col-12">
+            <div class="card bg-surface border-0 p-4 shadow-sm hover-elevate">
+                <div class="row align-items-center">
+                    <div class="col-md-4">
+                        <h4 class="text-white mb-0 fw-bold">{{ p.name }}</h4>
+                        <span class="extra-small text-secondary">{{ p.holdings|length }} Assets Held</span>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <span class="extra-small text-secondary d-block mb-1">TERMINAL VALUE</span>
+                        <h3 class="text-white fw-bold mb-0">${{ "{:,.2f}".format(portfolio_totals[p.id]) }}</h3>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <a href="{{ url_for('view_portfolio', p_id=p.id) }}" class="btn btn-primary px-4 py-2 fw-bold rounded-3">
+                            Manage Terminal
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% endif %}
+</div>
+
+{% endblock %}

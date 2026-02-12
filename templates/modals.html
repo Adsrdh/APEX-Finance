@@ -1,0 +1,31 @@
+<div class="modal fade" id="initPortfolioModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-surface border-secondary border-opacity-25 rounded-4">
+            <form method="POST" action="{{ url_for('initialize_portfolio') }}">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold text-white">Initialize New Portfolio</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small fw-bold">TERMINAL NAME</label>
+                        <input type="text" name="name" class="form-control" placeholder="e.g. High Growth Tech" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-8">
+                            <label class="form-label text-secondary small fw-bold">FIRST ASSET (TICKER)</label>
+                            <input type="text" name="ticker" class="form-control" placeholder="AAPL" required>
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label text-secondary small fw-bold">QUANTITY</label>
+                            <input type="number" step="any" name="quantity" class="form-control" placeholder="1.0" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-bold">Build Portfolio</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
