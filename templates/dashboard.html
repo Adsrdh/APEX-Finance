@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="row g-4 mb-5 align-items-stretch">
+    <div class="col-lg-8">
+        <div class="row h-100 g-4">
+            <div class="col-md-6">
+                <div class="card bg-surface border-0 p-4 h-100 shadow-sm">
+                    <h6 class="text-secondary extra-small fw-bold mb-3">TOTAL VALUATION</h6>
+                    <h1 class="text-white fw-bold display-5">${{ "{:,.2f}".format(total_value) }}</h1>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card bg-surface border-0 p-4 h-100 shadow-sm">
+                    <h6 class="text-secondary extra-small fw-bold mb-3">DAY CHANGE (%)</h6>
+                    <h1 class="{% if day_change_pct >= 0 %}text-success{% else %}text-danger{% endif %} fw-bold display-5">
+                        {{ "+" if day_change_pct > 0 }}{{ day_change_pct }}%
+                    </h1>
+                    <p class="text-muted small mb-0">Since market open</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card bg-surface border-0 p-4 h-100 shadow-sm text-center">
+            <h6 class="text-secondary extra-small fw-bold mb-4">SECTOR ALLOCATION</h6>
+            <div style="height: 180px;">
+                <canvas id="sectorChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card bg-surface border-0 shadow-lg">
+    <div class="card-header bg-transparent border-bottom border-secondary border-opacity-10 py-3">
+        <h5 class="mb-0 fw-bold text-white">List of all Stocks</h5>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-dark table-hover align-middle mb-0" style="--bs-table-bg: transparent;">
+            <thead class="extra-small text-secondary">
+                <tr>
+                    <th class="ps-4">TICKER</th>
+                    <th>NAME</th>
+                    <th>PRICE</th>
+                    <th>QTY</th>
+                    <th class="text-end pe-4">TOTAL VALUE</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stock in portfolio.stocks.values() %}
+                <tr>
+                    <td class="ps-4">
+                        <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 fw-bold">
+                            {{ stock.ticker_symbol }}
+                        </span>
+                    </td>
+                    <td class="text-white">{{ stock.company_info.name[:25] }}</td>
+                    <td>${{ "{:,.2f}".format(stock.market_data.current_price) }}</td>
+                    <td>{{ stock.get_quantity_held() }}</td>
+                    <td class="text-end pe-4 text-white fw-bold">
+                        ${{ "{:,.2f}".format(stock.get_total_value()) }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card-footer bg-transparent border-0 text-center py-4">
+        <button class="btn btn-outline-primary px-5 py-2 fw-bold rounded-pill" data-bs-toggle="modal" data-bs-target="#addStockModal">
+            <i class="bi bi-plus-lg me-2"></i>Add Stock
+        </button>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ctx = document.getElementById('sectorChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: {{ sector_data.keys()|list|tojson }},
+            datasets: [{
+                data: {{ sector_data.values()|list|tojson }},
+                backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'],
+                borderWidth: 0,
+                hoverOffset: 10
+            }]
+        },
+        options: {
+            plugins: { legend: { display: false } },
+            cutout: '80%',
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+</script>
+
+{% endblock %}

@@ -219,3 +219,18 @@ html, body {
     color: white !important;
 }
 
+/* Specific Portfolio Dashboard Styling */
+.badge.bg-primary.bg-opacity-10 {
+    background-color: rgba(59, 130, 246, 0.1) !important;
+}
+
+#sectorChart {
+    max-width: 100%;
+    margin: 0 auto;
+}
+
+/* Ensure chart responsiveness */
+.card-body canvas {
+    width: 100% !important;
+    height: 100% !important;
+}

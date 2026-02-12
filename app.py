@@ -26,7 +26,6 @@ class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(150), unique=True, nullable=False)
     password = db.Column(db.String(300), nullable=False)
-    # Link to portfolios: User can have many
     portfolios = db.relationship("Portfolio", backref="owner", lazy=True)
 
 
@@ -34,7 +33,6 @@ class Portfolio(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    # Link to holdings: Portfolio contains many stock tickers/quantities
     holdings = db.relationship("Holding", backref="parent_portfolio", lazy=True)
 
 
@@ -53,13 +51,17 @@ def load_user(user_id):
 
 # ------------------ HELPER FUNCTIONS ------------------
 def build_portfolio_logic(portfolio_db_obj):
-    """Translates DB records into the StockPortfolio logic class."""
+    """
+    Translates DB records into your StockPortfolio logic class.
+    This creates the active Stock objects that fetch yfinance data.
+    """
     p_logic = StockPortfolio(name=portfolio_db_obj.name)
     for h in portfolio_db_obj.holdings:
         try:
             p_logic.add_stock(h.ticker, h.quantity)
         except Exception as e:
-            print(f"Error loading ticker {h.ticker}: {e}")
+            print(f"Error loading {h.ticker}: {e}")
+            continue
     return p_logic
 
 
@@ -86,7 +88,6 @@ def signup():
         db.session.add(user)
         db.session.commit()
 
-
         flash("Secure access established. Please log in.")
         return redirect(url_for('login'))
     return render_template('signup.html')
@@ -109,10 +110,13 @@ def login():
 @app.route('/dashboard')
 @login_required
 def dashboard():
+    """
+    Main landing page showing all portfolios.
+    Uses portfolio_view.html as requested.
+    """
     user_portfolios = current_user.portfolios
     portfolio_totals = {}
 
-    # Calculate values for the Home Card view
     for p in user_portfolios:
         logic = build_portfolio_logic(p)
         portfolio_totals[p.id] = logic.get_portfolio_value()
@@ -127,39 +131,80 @@ def dashboard():
 @app.route('/portfolio/<int:p_id>')
 @login_required
 def view_portfolio(p_id):
-    """Individual portfolio management page (your previous dashboard view)"""
+    """
+    Individual portfolio management page.
+    Uses dashboard.html as requested.
+    """
     active_p_db = Portfolio.query.get_or_404(p_id)
     if active_p_db.user_id != current_user.id:
         return "Unauthorized", 403
 
+    # 1. Initialize your Logic Engine
     p_logic = build_portfolio_logic(active_p_db)
+
+    # 2. Use your Logic Engine to get data for the UI
+    total_val = p_logic.get_portfolio_value()
+    sector_dist = p_logic.holding_by_sector()
+
+    # 3. Calculate Portfolio-wide Day Change using your Change class logic
+    total_dollar_change = 0
+    for stock in p_logic.stocks.values():
+        dollar_change, _ = stock.get_change(period="daily")
+        total_dollar_change += (dollar_change * stock.get_quantity_held())
+
+    # Calculate weighted percentage change
+    previous_total_val = total_val - total_dollar_change
+    day_change_pct = round((total_dollar_change / previous_total_val * 100), 2) if previous_total_val != 0 else 0
+
     return render_template(
-        'portfolio_view.html',  # Rename your old portfolio_view.html to this
+        'dashboard.html',
         portfolio=p_logic,
         active_portfolio_db=active_p_db,
-        total_value=p_logic.get_portfolio_value(),
-        sector_data=p_logic.holding_by_sector()
+        total_value=total_val,
+        day_change_pct=day_change_pct,
+        sector_data=sector_dist
     )
 
 
 @app.route('/initialize_portfolio', methods=['POST'])
 @login_required
 def initialize_portfolio():
+    """Combined route for manual creation or CSV import."""
     p_name = request.form.get('name')
-    ticker = request.form.get('ticker').upper()
-    qty = float(request.form.get('quantity'))
+    ticker = request.form.get('ticker')
+    qty_str = request.form.get('quantity')
+    file = request.files.get('file')
 
-    # 1. Create Portfolio
+    # 1. Create Portfolio record
     new_p = Portfolio(name=p_name, user_id=current_user.id)
     db.session.add(new_p)
-    db.session.flush()  # Get the ID before committing
+    db.session.flush()
 
-    # 2. Add first stock
-    first_holding = Holding(ticker=ticker, quantity=qty, portfolio_id=new_p.id)
-    db.session.add(first_holding)
-    db.session.commit()
+    # 2. Handle Data Source
+    if file and file.filename.endswith('.csv'):
+        try:
+            df = pd.read_csv(file)
+            df.columns = [c.lower().strip() for c in df.columns]
+            for _, row in df.iterrows():
+                new_h = Holding(ticker=str(row['ticker']).upper(), quantity=float(row['quantity']), portfolio_id=new_p.id)
+                db.session.add(new_h)
+            db.session.commit()
+            flash(f"Portfolio {p_name} initialized via CSV.")
+        except Exception as e:
+            flash(f"CSV Parse Error: {e}")
+            return redirect(url_for('dashboard'))
+    elif ticker and qty_str:
+        try:
+            new_h = Holding(ticker=ticker.upper(), quantity=float(qty_str), portfolio_id=new_p.id)
+            db.session.add(new_h)
+            db.session.commit()
+            flash(f"Portfolio {p_name} initialized successfully.")
+        except ValueError:
+            flash("Invalid quantity entered.")
+    else:
+        db.session.commit()
+        flash(f"Empty Portfolio {p_name} created.")
 
-    flash(f"Terminal {p_name} initialized successfully.")
     return redirect(url_for('dashboard'))
 
 
@@ -178,7 +223,7 @@ def add_stock():
         db.session.add(new_h)
 
     db.session.commit()
-    return redirect(url_for('dashboard', p_id=p_id))
+    return redirect(url_for('view_portfolio', p_id=p_id))
 
 
 @app.route('/logout')

@@ -28,12 +28,12 @@
                         <span class="extra-small text-secondary">{{ p.holdings|length }} Assets Held</span>
                     </div>
                     <div class="col-md-4 text-center">
-                        <span class="extra-small text-secondary d-block mb-1">TERMINAL VALUE</span>
+                        <span class="extra-small text-secondary d-block mb-1">PORTFOLIO VALUE</span>
                         <h3 class="text-white fw-bold mb-0">${{ "{:,.2f}".format(portfolio_totals[p.id]) }}</h3>
                     </div>
                     <div class="col-md-4 text-end">
                         <a href="{{ url_for('view_portfolio', p_id=p.id) }}" class="btn btn-primary px-4 py-2 fw-bold rounded-3">
-                            Manage Terminal
+                            Manage Portfolio
                         </a>
                     </div>
                 </div>
