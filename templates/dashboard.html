@@ -50,28 +50,30 @@
             </thead>
             <tbody>
                 {% for stock in portfolio.stocks.values() %}
-                <tr>
-                    <td class="ps-4">
-                        <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 fw-bold">
-                            {{ stock.ticker_symbol }}
-                        </span>
-                    </td>
-                    <td class="text-white">{{ stock.company_info.name[:25] }}</td>
-                    <td>${{ "{:,.2f}".format(stock.market_data.current_price) }}</td>
-                    <td>{{ stock.get_quantity_held() }}</td>
-                    <td class="text-white fw-bold">
-                        ${{ "{:,.2f}".format(stock.get_total_value()) }}
-                    </td>
-                    <td class="text-end pe-4">
-                        {% for h in active_portfolio_db.holdings if h.ticker == stock.ticker_symbol %}
-                        <button type="button" class="btn btn-sm btn-outline-danger border-0"
-                                onclick="openSellModal('{{ h.id }}', '{{ h.ticker }}', '{{ h.quantity }}')">
-                            <i class="bi bi-dash-circle me-1"></i> Sell
-                        </button>
-                        {% endfor %}
-                    </td>
-                </tr>
-                {% endfor %}
+<tr>
+    <td class="ps-4">
+        <a href="{{ url_for('stock_detail', ticker=stock.ticker_symbol) }}" class="text-decoration-none">
+            <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 fw-bold">
+                {{ stock.ticker_symbol }}
+            </span>
+        </a>
+    </td>
+    <td class="text-white">{{ stock.company_info.name[:25] }}</td>
+    <td>${{ "{:,.2f}".format(stock.market_data.current_price) }}</td>
+    <td>{{ stock.get_quantity_held() }}</td>
+    <td class="text-white fw-bold">
+        ${{ "{:,.2f}".format(stock.get_total_value()) }}
+    </td>
+    <td class="text-end pe-4">
+        {% for h in active_portfolio_db.holdings if h.ticker == stock.ticker_symbol %}
+        <button type="button" class="btn btn-sm btn-outline-danger border-0"
+                onclick="openSellModal('{{ h.id }}', '{{ h.ticker }}', '{{ h.quantity }}')">
+            <i class="bi bi-dash-circle me-1"></i> Sell
+        </button>
+        {% endfor %}
+    </td>
+</tr>
+{% endfor %}
             </tbody>
         </table>
     </div>

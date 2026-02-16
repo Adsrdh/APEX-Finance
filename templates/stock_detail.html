@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="fw-bold mb-0 text-white">{{ stock.ticker_symbol }}</h1>
+        <h5 class="text-secondary">{{ stock.company_info.name }}</h5>
+    </div>
+    <div class="text-end">
+        <h2 class="fw-bold mb-0 text-white">${{ "{:,.2f}".format(stock.market_data.current_price) }}</h2>
+        <span class="{% if pct_change >= 0 %}text-success{% else %}text-danger{% endif %} fw-bold">
+            {{ "+" if pct_change > 0 }}{{ dollar_change }} ({{ pct_change }}%)
+        </span>
+    </div>
+</div>
+
+<div class="card bg-surface border-0 mb-4">
+    <div class="card-body py-2">
+        <ul class="nav nav-pills gap-3" id="stockTab" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link active text-white fw-bold small bg-transparent border-0 border-bottom border-primary rounded-0"
+                        id="market-tab" data-bs-toggle="pill" data-bs-target="#market-view">MARKET OVERVIEW</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link text-secondary fw-bold small bg-transparent border-0 rounded-0"
+                        id="visuals-tab" data-bs-toggle="pill" data-bs-target="#visuals-view">TECHNICAL VISUALS</button>
+            </li>
+        </ul>
+    </div>
+</div>
+
+<div class="tab-content" id="stockTabContent">
+    <div class="tab-pane fade show active" id="market-view">
+        <div class="row g-4">
+            <div class="col-lg-8">
+                <div class="card bg-surface border-0 p-3 shadow-sm text-center">
+                    <h6 class="text-secondary extra-small fw-bold mb-4 text-uppercase">Price & Volume Performance</h6>
+                    <img src="data:image/png;base64,{{ volume_chart }}" class="img-fluid rounded shadow" alt="Price Volume Chart">
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card bg-surface border-0 p-4 shadow-sm">
+                    <h6 class="text-secondary extra-small fw-bold mb-4 text-uppercase">Company Profile</h6>
+                    <p class="text-muted small mb-4">{{ stock.company_info.summary[:400] }}...</p>
+                    <hr class="border-secondary opacity-10">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-secondary extra-small">SECTOR</span>
+                        <span class="text-white small fw-bold">{{ stock.company_info.sector }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-secondary extra-small">MARKET CAP</span>
+                        <span class="text-white small fw-bold">${{ "{:,.1f}".format(stock.market_data.market_cap / 1000000000) }}B</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="visuals-view">
+        <div class="row g-4">
+            <div class="col-12">
+                <div class="card bg-surface border-0 p-3 shadow-sm text-center">
+                    <h6 class="text-secondary extra-small fw-bold mb-4 text-uppercase">Bollinger Bands (Volatility Analysis)</h6>
+                    <img src="data:image/png;base64,{{ bollinger_chart }}" class="img-fluid rounded shadow" alt="Bollinger Chart">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

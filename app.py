@@ -6,7 +6,13 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, login_required, logout_user, UserMixin, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from stock import Stock
-
+from visuals import StockVisuals, PortfolioVisuals
+from utils import get_plot_url
+import io
+import base64
+import matplotlib
+matplotlib.use('Agg') # Required for non-GUI backend
+import matplotlib.pyplot as plt
 from stockportfolio import StockPortfolio
 
 # ------------------ APP CONFIG ------------------
@@ -268,6 +274,50 @@ def sell_stock():
     db.session.commit()
     return redirect(url_for('view_portfolio', p_id=p_id))
 
+
+def get_plot_url():
+    img = io.BytesIO()
+    # Set facecolor to match your --surface-slate (#1e293b)
+    plt.savefig(img, format='png', bbox_inches='tight', facecolor='#1e293b')
+    img.seek(0)
+    plot_url = base64.b64encode(img.getvalue()).decode('utf-8')
+    plt.close()
+    return plot_url
+
+
+@app.route('/stock/<ticker>')
+@login_required
+def stock_detail(ticker):
+    try:
+        stock_obj = Stock(ticker)
+        dollar_change, pct_change = stock_obj.get_change(period="daily")
+
+        # Initialize Visuals with yearly data
+        hist_df = stock_obj.history.yearly()
+        visualizer = StockVisuals(hist_df)
+
+        # Apply dark styling globally for the session
+        plt.style.use('dark_background')
+
+        # Generate Bollinger Chart
+        visualizer.create_volatility_chart(ticker=ticker)
+        bollinger_url = get_plot_url()
+
+        # Generate Price/Volume Chart
+        visualizer.create_price_volume_line_chart(ticker=ticker)
+        volume_url = get_plot_url()
+
+        return render_template(
+            'stock_detail.html',
+            stock=stock_obj,
+            dollar_change=dollar_change,
+            pct_change=pct_change,
+            bollinger_chart=bollinger_url,
+            volume_chart=volume_url
+        )
+    except Exception as e:
+        flash(f"Error loading visuals: {e}")
+        return redirect(url_for('dashboard'))
 @app.route('/logout')
 @login_required
 def logout():

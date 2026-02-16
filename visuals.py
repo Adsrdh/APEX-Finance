@@ -23,6 +23,14 @@ class PortfolioVisuals:
             print(f"❌ Error rendering Pie Chart: {e}")
 
     def create_benchmark_comparison(self, benchmark_ticker="^GSPC"):
+        # Add this to the top of your functions in visuals.py
+        plt.style.use('dark_background')
+        plt.rcParams.update({
+            'axes.facecolor': '#1e293b',  # Match --surface-slate
+            'figure.facecolor': '#1e293b',  # Match --surface-slate
+            'axes.edgecolor': '#334155',
+            'grid.color': '#334155'
+        })
         if self.data is None or self.data.empty or 'TotalValue' not in self.data.columns:
             print("⚠️ Insufficient history for benchmark comparison.")
             return
@@ -69,6 +77,14 @@ class PortfolioVisuals:
             print(f"❌ Error rendering Benchmark Chart: {e}")
 
     def create_risk_reward_scatter(self):
+        # Add this to the top of your functions in visuals.py
+        plt.style.use('dark_background')
+        plt.rcParams.update({
+            'axes.facecolor': '#1e293b',  # Match --surface-slate
+            'figure.facecolor': '#1e293b',  # Match --surface-slate
+            'axes.edgecolor': '#334155',
+            'grid.color': '#334155'
+        })
         if not self.data or len(self.data) < 1:
             print("⚠️ Not enough stock data for Risk-Reward scatter.")
             return
@@ -126,6 +142,14 @@ class StockVisuals:
             print(f"❌ Error in Line Graph: {e}")
 
     def create_volatility_chart(self, ticker="Stock"):
+        # Add this to the top of your functions in visuals.py
+        plt.style.use('dark_background')
+        plt.rcParams.update({
+            'axes.facecolor': '#1e293b',  # Match --surface-slate
+            'figure.facecolor': '#1e293b',  # Match --surface-slate
+            'axes.edgecolor': '#334155',
+            'grid.color': '#334155'
+        })
         if not self._validate_data() or len(self.data) < 20:
             print("⚠️ Need at least 20 days of data for Volatility Chart.")
             return
@@ -154,6 +178,14 @@ class StockVisuals:
             print(f"❌ Error in Volatility Chart: {e}")
 
     def create_price_volume_line_chart(self, ticker="Stock"):
+        # Add this to the top of your functions in visuals.py
+        plt.style.use('dark_background')
+        plt.rcParams.update({
+            'axes.facecolor': '#1e293b',  # Match --surface-slate
+            'figure.facecolor': '#1e293b',  # Match --surface-slate
+            'axes.edgecolor': '#334155',
+            'grid.color': '#334155'
+        })
         if not self._validate_data() or 'Volume' not in self.data.columns:
             print("⚠️ Missing Price or Volume data.")
             return
