@@ -5,13 +5,13 @@
     <div class="col-lg-8">
         <div class="row h-100 g-4">
             <div class="col-md-6">
-                <div class="card bg-surface border-0 p-4 h-100 shadow-sm">
+                <div class="card bg-surface border-0 p-4 h-100 shadow-sm text-start">
                     <h6 class="text-secondary extra-small fw-bold mb-3">TOTAL VALUATION</h6>
                     <h1 class="text-white fw-bold display-5">${{ "{:,.2f}".format(total_value) }}</h1>
                 </div>
             </div>
             <div class="col-md-6">
-                <div class="card bg-surface border-0 p-4 h-100 shadow-sm">
+                <div class="card bg-surface border-0 p-4 h-100 shadow-sm text-start">
                     <h6 class="text-secondary extra-small fw-bold mb-3">DAY CHANGE (%)</h6>
                     <h1 class="{% if day_change_pct >= 0 %}text-success{% else %}text-danger{% endif %} fw-bold display-5">
                         {{ "+" if day_change_pct > 0 }}{{ day_change_pct }}%
@@ -44,7 +44,8 @@
                     <th>NAME</th>
                     <th>PRICE</th>
                     <th>QTY</th>
-                    <th class="text-end pe-4">TOTAL VALUE</th>
+                    <th>VALUE</th>
+                    <th class="text-end pe-4">MANAGEMENT</th>
                 </tr>
             </thead>
             <tbody>
@@ -58,8 +59,16 @@
                     <td class="text-white">{{ stock.company_info.name[:25] }}</td>
                     <td>${{ "{:,.2f}".format(stock.market_data.current_price) }}</td>
                     <td>{{ stock.get_quantity_held() }}</td>
-                    <td class="text-end pe-4 text-white fw-bold">
+                    <td class="text-white fw-bold">
                         ${{ "{:,.2f}".format(stock.get_total_value()) }}
+                    </td>
+                    <td class="text-end pe-4">
+                        {% for h in active_portfolio_db.holdings if h.ticker == stock.ticker_symbol %}
+                        <button type="button" class="btn btn-sm btn-outline-danger border-0"
+                                onclick="openSellModal('{{ h.id }}', '{{ h.ticker }}', '{{ h.quantity }}')">
+                            <i class="bi bi-dash-circle me-1"></i> Sell
+                        </button>
+                        {% endfor %}
                     </td>
                 </tr>
                 {% endfor %}
@@ -68,21 +77,98 @@
     </div>
 
     <div class="card-footer bg-transparent border-0 text-center py-4">
-        <button class="btn btn-outline-primary px-5 py-2 fw-bold rounded-pill" data-bs-toggle="modal" data-bs-target="#addStockModal">
+        <button class="btn btn-primary px-5 py-2 fw-bold rounded-pill shadow-sm" data-bs-toggle="modal" data-bs-target="#addStockModal">
             <i class="bi bi-plus-lg me-2"></i>Add Stock
         </button>
     </div>
 </div>
 
+<div class="modal fade" id="sellStockModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-surface border-secondary border-opacity-25 rounded-4">
+            <form id="sellForm" method="POST" action="{{ url_for('sell_stock') }}">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold text-white">Liquidate Position: <span id="sellTickerDisplay"></span></h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="holding_id" id="modalHoldingId">
+                    <input type="hidden" name="sell_all" id="modalSellAll" value="false">
+
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small fw-bold">QUANTITY TO SELL</label>
+                        <input type="number" step="any" name="quantity" id="sellQtyInput" class="form-control" placeholder="0.00">
+                        <div class="form-text text-muted extra-small mt-2 text-uppercase">
+                            Max Available: <span id="maxQtyDisplay"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 d-flex gap-2">
+                    <button type="button" class="btn btn-outline-danger flex-grow-1 py-2 fw-bold" onclick="submitSellAll()">Sell All</button>
+                    <button type="submit" class="btn btn-danger flex-grow-1 py-2 fw-bold">Confirm Sale</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addStockModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-surface border-secondary border-opacity-25 rounded-4">
+            <form method="POST" action="{{ url_for('add_stock') }}">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold text-white">Add Asset to Terminal</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="portfolio_id" value="{{ active_portfolio_db.id }}">
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small fw-bold">TICKER SYMBOL</label>
+                        <input type="text" name="ticker" class="form-control" placeholder="e.g. NVDA" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small fw-bold">QUANTITY</label>
+                        <input type="number" step="any" name="quantity" class="form-control" placeholder="0.00" required>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-bold shadow-sm">Execute Purchase</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    // 1. MODAL LOGIC
+    function openSellModal(id, ticker, maxQty) {
+        document.getElementById('modalHoldingId').value = id;
+        document.getElementById('sellTickerDisplay').innerText = ticker;
+        document.getElementById('maxQtyDisplay').innerText = maxQty;
+        document.getElementById('sellQtyInput').max = maxQty;
+        document.getElementById('modalSellAll').value = 'false';
+
+        var sellModal = new bootstrap.Modal(document.getElementById('sellStockModal'));
+        sellModal.show();
+    }
+
+    function submitSellAll() {
+        document.getElementById('modalSellAll').value = 'true';
+        document.getElementById('sellForm').submit();
+    }
+
+    // 2. DONUT CHART LOGIC
     const ctx = document.getElementById('sectorChart').getContext('2d');
+    const sectorLabels = {{ sector_data.keys()|list|tojson|safe }};
+    const sectorValues = {{ sector_data.values()|list|tojson|safe }};
+
     new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: {{ sector_data.keys()|list|tojson }},
+            labels: sectorLabels,
             datasets: [{
-                data: {{ sector_data.values()|list|tojson }},
+                data: sectorValues,
                 backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'],
                 borderWidth: 0,
                 hoverOffset: 10

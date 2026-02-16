@@ -5,6 +5,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, login_required, logout_user, UserMixin, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+from stock import Stock
 
 from stockportfolio import StockPortfolio
 
@@ -212,19 +213,60 @@ def initialize_portfolio():
 @login_required
 def add_stock():
     p_id = request.form.get('portfolio_id')
-    ticker = request.form.get('ticker').upper()
-    quantity = float(request.form.get('quantity'))
+    ticker_symbol = request.form.get('ticker').upper().strip()
+    qty_str = request.form.get('quantity')
 
-    existing = Holding.query.filter_by(portfolio_id=p_id, ticker=ticker).first()
-    if existing:
-        existing.quantity += quantity
+    try:
+        # 1. Validation using your Stock class (from Stock.py)
+        # This will raise a ValueError if the ticker is invalid
+        temp_stock = Stock(ticker_symbol, quantity=0)
+
+        quantity = float(qty_str)
+
+        existing = Holding.query.filter_by(portfolio_id=p_id, ticker=ticker_symbol).first()
+        if existing:
+            existing.quantity += quantity
+        else:
+            new_h = Holding(ticker=ticker_symbol, quantity=quantity, portfolio_id=p_id)
+            db.session.add(new_h)
+
+        db.session.commit()
+        flash(f"Verified and added {ticker_symbol}.")
+    except (ValueError, ConnectionError) as e:
+        flash(f"Invalid Ticker: {str(e)}")
+    except Exception as e:
+        flash("An error occurred during addition.")
+
+    return redirect(url_for('view_portfolio', p_id=p_id))
+
+
+@app.route('/sell_stock', methods=['POST'])
+@login_required
+def sell_stock():
+    holding_id = request.form.get('holding_id')
+    sell_all = request.form.get('sell_all') == 'true'
+    qty_input = request.form.get('quantity')
+
+    holding = Holding.query.get_or_404(holding_id)
+    p_id = holding.portfolio_id
+
+    if sell_all:
+        db.session.delete(holding)
+        flash("Position liquidated.")
     else:
-        new_h = Holding(ticker=ticker, quantity=quantity, portfolio_id=p_id)
-        db.session.add(new_h)
+        try:
+            # Ensure we can convert to float only if we aren't selling all
+            sell_qty = float(qty_input) if qty_input else 0
+            if sell_qty >= holding.quantity:
+                db.session.delete(holding)
+            else:
+                holding.quantity -= sell_qty
+            flash("Portfolio updated.")
+        except ValueError:
+            flash("Please enter a valid quantity.")
 
     db.session.commit()
     return redirect(url_for('view_portfolio', p_id=p_id))
-
 
 @app.route('/logout')
 @login_required
