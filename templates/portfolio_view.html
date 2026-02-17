@@ -6,7 +6,7 @@
     <p class="text-secondary small">Access your Stock Portfolios below.</p>
 </div>
 
-<div class="row g-4 mt-2">
+<div class="row g-4 mt-2 pb-5">
     {% if not current_user.portfolios %}
     <div class="col-12 text-center py-5">
         <div class="card bg-surface border-0 p-5 rounded-4 border-dashed">
@@ -31,10 +31,16 @@
                         <span class="extra-small text-secondary d-block mb-1">PORTFOLIO VALUE</span>
                         <h3 class="text-white fw-bold mb-0">${{ "{:,.2f}".format(portfolio_totals[p.id]) }}</h3>
                     </div>
-                    <div class="col-md-4 text-end">
+                    <div class="col-md-4 text-end d-flex justify-content-end gap-2">
                         <a href="{{ url_for('view_portfolio', p_id=p.id) }}" class="btn btn-primary px-4 py-2 fw-bold rounded-3">
-                            Manage Portfolio
+                            Manage
                         </a>
+
+                        <form action="{{ url_for('delete_portfolio', p_id=p.id) }}" method="POST" onsubmit="return confirmDelete('{{ p.name }}')">
+                            <button type="submit" class="btn btn-outline-danger px-3 py-2 rounded-3">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -42,5 +48,11 @@
         {% endfor %}
     {% endif %}
 </div>
+
+<script>
+    function confirmDelete(portfolioName) {
+        return confirm("Are you sure you want to delete '" + portfolioName + "'? This will remove all holdings and cannot be undone.");
+    }
+</script>
 
 {% endblock %}

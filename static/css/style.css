@@ -234,3 +234,99 @@ html, body {
     width: 100% !important;
     height: 100% !important;
 }
+
+/* NovaFinance Terminal Styles */
+:root {
+    --bg-slate: #0f172a;
+    --surface-slate: #1e293b;
+    --primary-blue: #3b82f6;
+    --emerald: #10b981;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+}
+
+html, body {
+    height: 100%;
+    margin: 0;
+    background-color: var(--bg-slate) !important;
+    color: var(--text-main) !important;
+    font-family: 'Inter', sans-serif;
+    overflow: hidden; /* Prevents double scrolling on the outer body */
+}
+
+/* FIXED SIDEBAR */
+#sidebarMenu {
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background-color: var(--surface-slate) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* SCROLLABLE MAIN STAGE */
+main.col-md-9 {
+    height: 100vh;
+    overflow-y: auto; /* Enables vertical scrolling for your charts and tables */
+    background-color: var(--bg-slate);
+    padding-bottom: 5rem; /* Padding to ensure the 'Add Stock' button is visible */
+}
+
+/* Custom Scrollbar */
+main::-webkit-scrollbar {
+    width: 6px;
+}
+main::-webkit-scrollbar-track {
+    background: var(--bg-slate);
+}
+main::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 10px;
+}
+
+/* Components */
+.bg-surface {
+    background-color: var(--surface-slate) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    border-radius: 16px !important;
+}
+
+.form-control {
+    background-color: #020617 !important;
+    border: 1px solid #334155 !important;
+    color: white !important;
+}
+
+.extra-small {
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    opacity: 0.6;
+}
+
+.hover-elevate {
+    transition: all 0.3s ease;
+}
+
+.hover-elevate:hover {
+    transform: translateY(-5px);
+    background-color: #243049 !important;
+}
+
+/* Stock Detail Tab Highlighting */
+#stockTab .nav-link {
+    color: var(--text-muted);
+    border: 1px solid transparent;
+    transition: all 0.3s ease;
+}
+
+#stockTab .nav-link.active {
+    background-color: var(--primary-blue) !important;
+    color: white !important;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+#stockTab .nav-link:hover:not(.active) {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: white;
+}

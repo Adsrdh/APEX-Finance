@@ -21,67 +21,83 @@
             </div>
         </div>
     </div>
-
     <div class="col-lg-4">
         <div class="card bg-surface border-0 p-4 h-100 shadow-sm text-center">
             <h6 class="text-secondary extra-small fw-bold mb-4">SECTOR ALLOCATION</h6>
-            <div style="height: 180px;">
-                <canvas id="sectorChart"></canvas>
-            </div>
+            <div style="height: 180px;"><canvas id="sectorChart"></canvas></div>
         </div>
     </div>
 </div>
 
-<div class="card bg-surface border-0 shadow-lg">
-    <div class="card-header bg-transparent border-bottom border-secondary border-opacity-10 py-3">
-        <h5 class="mb-0 fw-bold text-white">List of all Stocks</h5>
-    </div>
+<div class="card bg-surface border-0 shadow-lg mb-5">
+    <div class="card-header bg-transparent border-bottom border-secondary border-opacity-10 py-3 text-white fw-bold">List of all Stocks</div>
     <div class="table-responsive">
         <table class="table table-dark table-hover align-middle mb-0" style="--bs-table-bg: transparent;">
             <thead class="extra-small text-secondary">
-                <tr>
-                    <th class="ps-4">TICKER</th>
-                    <th>NAME</th>
-                    <th>PRICE</th>
-                    <th>QTY</th>
-                    <th>VALUE</th>
-                    <th class="text-end pe-4">MANAGEMENT</th>
-                </tr>
+                <tr><th class="ps-4">TICKER</th><th>NAME</th><th>PRICE</th><th>QTY</th><th>VALUE</th><th class="text-end pe-4">MANAGEMENT</th></tr>
             </thead>
             <tbody>
                 {% for stock in portfolio.stocks.values() %}
-<tr>
-    <td class="ps-4">
-        <a href="{{ url_for('stock_detail', ticker=stock.ticker_symbol) }}" class="text-decoration-none">
-            <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 fw-bold">
-                {{ stock.ticker_symbol }}
-            </span>
-        </a>
-    </td>
-    <td class="text-white">{{ stock.company_info.name[:25] }}</td>
-    <td>${{ "{:,.2f}".format(stock.market_data.current_price) }}</td>
-    <td>{{ stock.get_quantity_held() }}</td>
-    <td class="text-white fw-bold">
-        ${{ "{:,.2f}".format(stock.get_total_value()) }}
-    </td>
-    <td class="text-end pe-4">
-        {% for h in active_portfolio_db.holdings if h.ticker == stock.ticker_symbol %}
-        <button type="button" class="btn btn-sm btn-outline-danger border-0"
-                onclick="openSellModal('{{ h.id }}', '{{ h.ticker }}', '{{ h.quantity }}')">
-            <i class="bi bi-dash-circle me-1"></i> Sell
-        </button>
-        {% endfor %}
-    </td>
-</tr>
-{% endfor %}
+                <tr>
+                    <td class="ps-4">
+                        <a href="{{ url_for('stock_detail', ticker=stock.ticker_symbol) }}" class="text-decoration-none">
+                            <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 fw-bold">{{ stock.ticker_symbol }}</span>
+                        </a>
+                    </td>
+                    <td class="text-white">{{ stock.company_info.name[:25] }}</td>
+                    <td>${{ "{:,.2f}".format(stock.market_data.current_price) }}</td>
+                    <td>{{ stock.get_quantity_held() }}</td>
+                    <td class="text-white fw-bold">${{ "{:,.2f}".format(stock.get_total_value()) }}</td>
+                    <td class="text-end pe-4">
+                        {% for h in active_portfolio_db.holdings if h.ticker == stock.ticker_symbol %}
+                        <button type="button" class="btn btn-sm btn-outline-danger border-0" onclick="openSellModal('{{ h.id }}', '{{ h.ticker }}', '{{ h.quantity }}')">Sell</button>
+                        {% endfor %}
+                    </td>
+                </tr>
+                {% endfor %}
             </tbody>
         </table>
     </div>
-
     <div class="card-footer bg-transparent border-0 text-center py-4">
-        <button class="btn btn-primary px-5 py-2 fw-bold rounded-pill shadow-sm" data-bs-toggle="modal" data-bs-target="#addStockModal">
-            <i class="bi bi-plus-lg me-2"></i>Add Stock
-        </button>
+        <button class="btn btn-primary px-5 py-2 fw-bold rounded-pill" data-bs-toggle="modal" data-bs-target="#addStockModal">Add Stock</button>
+    </div>
+</div>
+
+<div class="card bg-surface border-0 shadow-lg mb-5">
+    <div class="card-header bg-transparent border-bottom border-secondary border-opacity-10 py-3 text-white fw-bold">Performance vs Benchmark (Growth of $100)</div>
+    <div class="card-body p-4 text-center">
+        {% if benchmark_chart %}
+            <img src="data:image/png;base64,{{ benchmark_chart }}" class="img-fluid rounded" style="max-height: 500px;">
+        {% else %}
+            <p class="text-secondary py-5">Not enough historical data to generate benchmark comparison.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="modal fade" id="addStockModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-surface border-secondary border-opacity-25 rounded-4">
+            <form method="POST" action="{{ url_for('add_stock') }}">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold text-white">Add Asset to Terminal</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="portfolio_id" value="{{ active_portfolio_db.id }}">
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small fw-bold">TICKER SYMBOL</label>
+                        <input type="text" name="ticker" class="form-control" placeholder="e.g. AAPL" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small fw-bold">QUANTITY</label>
+                        <input type="number" step="any" name="quantity" class="form-control" placeholder="0.00" required>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-bold shadow-sm">Execute Purchase</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
@@ -96,7 +112,6 @@
                 <div class="modal-body">
                     <input type="hidden" name="holding_id" id="modalHoldingId">
                     <input type="hidden" name="sell_all" id="modalSellAll" value="false">
-
                     <div class="mb-3">
                         <label class="form-label text-secondary small fw-bold">QUANTITY TO SELL</label>
                         <input type="number" step="any" name="quantity" id="sellQtyInput" class="form-control" placeholder="0.00">
@@ -114,36 +129,24 @@
     </div>
 </div>
 
-<div class="modal fade" id="addStockModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content bg-surface border-secondary border-opacity-25 rounded-4">
-            <form method="POST" action="{{ url_for('add_stock') }}">
-                <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold text-white">Add Asset to Terminal</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <input type="hidden" name="portfolio_id" value="{{ active_portfolio_db.id }}">
-                    <div class="mb-3">
-                        <label class="form-label text-secondary small fw-bold">TICKER SYMBOL</label>
-                        <input type="text" name="ticker" class="form-control" placeholder="e.g. NVDA" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label text-secondary small fw-bold">QUANTITY</label>
-                        <input type="number" step="any" name="quantity" class="form-control" placeholder="0.00" required>
-                    </div>
-                </div>
-                <div class="modal-footer border-0">
-                    <button type="submit" class="btn btn-primary w-100 py-2 fw-bold shadow-sm">Execute Purchase</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // 1. MODAL LOGIC
+    // 1. Sector Donut Chart
+    const ctx = document.getElementById('sectorChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: {{ sector_data.keys()|list|tojson|safe }},
+            datasets: [{
+                data: {{ sector_data.values()|list|tojson|safe }},
+                backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'],
+                borderWidth: 0
+            }]
+        },
+        options: { plugins: { legend: { display: false } }, cutout: '80%', responsive: true, maintainAspectRatio: false }
+    });
+
+    // 2. Sell Modal Logic
     function openSellModal(id, ticker, maxQty) {
         document.getElementById('modalHoldingId').value = id;
         document.getElementById('sellTickerDisplay').innerText = ticker;
@@ -159,30 +162,5 @@
         document.getElementById('modalSellAll').value = 'true';
         document.getElementById('sellForm').submit();
     }
-
-    // 2. DONUT CHART LOGIC
-    const ctx = document.getElementById('sectorChart').getContext('2d');
-    const sectorLabels = {{ sector_data.keys()|list|tojson|safe }};
-    const sectorValues = {{ sector_data.values()|list|tojson|safe }};
-
-    new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: sectorLabels,
-            datasets: [{
-                data: sectorValues,
-                backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'],
-                borderWidth: 0,
-                hoverOffset: 10
-            }]
-        },
-        options: {
-            plugins: { legend: { display: false } },
-            cutout: '80%',
-            responsive: true,
-            maintainAspectRatio: false
-        }
-    });
 </script>
-
 {% endblock %}
