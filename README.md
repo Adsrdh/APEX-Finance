@@ -1,4 +1,4 @@
-# NovaFinance Terminal
+# Apex Finance
 
 **NovaFinance Terminal** is a high-fidelity, full-stack financial management application designed for professional-grade portfolio tracking and technical analysis. Built with a "Slate-Dark" institutional aesthetic, it bridges the gap between raw market data and actionable investment insights using Python's robust data ecosystem.
 
